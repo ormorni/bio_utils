@@ -120,6 +120,7 @@ impl TransitionTable {
         }
 
         res
+        // (length * self.rates).exp()
     }
 }
 

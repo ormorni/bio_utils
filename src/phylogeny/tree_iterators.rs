@@ -2,6 +2,7 @@ use super::tree::*;
 
 /// An iterator over the nodes of a phylogenetic tree.
 /// Yields first the current node, then its child nodes.
+#[derive(Clone)]
 pub struct PreorderNodeIter<'t> {
     /// The stack of nodes to process.
     node_stack: Vec<&'t Node>,
@@ -29,6 +30,7 @@ impl<'t> Iterator for PreorderNodeIter<'t> {
 
 /// An iterator over the nodes of a phylogenetic tree.
 /// First iterates over the child nodes of the current node, then returns the node.
+#[derive(Clone)]
 pub struct PostorderNodeIter<'t> {
     /// The stack of nodes to process. Since nodes are processed only after the child nodes are
     /// processed, keeps also a list of booleans specifying whether the node should be processed
@@ -61,7 +63,7 @@ impl<'t> Iterator for PostorderNodeIter<'t> {
         }
     }
 }
-
+#[derive(Clone)]
 pub struct PreorderEdgeIterator<'t> {
     node_stack: Vec<Edge<'t>>,
 }
@@ -85,6 +87,7 @@ impl<'t> Iterator for PreorderEdgeIterator<'t> {
     }
 }
 
+#[derive(Clone)]
 pub struct PostorderEdgeIterator<'t> {
     node_iter: PostorderNodeIter<'t>,
     curr_node: &'t Node,
@@ -124,6 +127,11 @@ impl<'t> Tree {
         PostorderNodeIter::new(self)
     }
 
+    /// A generic iterator over the nodes, with no guaranteed order.
+    pub fn nodes(&'t self) -> PreorderNodeIter<'t> {
+        self.preorder_iter()
+    }
+
     /// Returns an iterator over the edges of the tree, in preorder iteration order.
     pub fn preorder_edge_iter(&'t self) -> PreorderEdgeIterator<'t> {
         PreorderEdgeIterator {
@@ -151,9 +159,15 @@ impl<'t> Tree {
             curr_index: 0,
         }
     }
+
+    /// A generic iterator over the edges, with no guaranteed iteration order.
+    pub fn edges(&'t self) -> PreorderEdgeIterator<'t> {
+        self.preorder_edge_iter()
+    }
+
     /// An iterator over the leaf nodes of the tree.
     pub fn leaf_nodes(&'t self) -> impl Iterator<Item = &'t Node> {
-        self.preorder_iter().filter(|node| node.is_leaf())
+        self.nodes().filter(|node| node.is_leaf())
     }
 }
 

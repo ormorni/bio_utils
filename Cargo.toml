@@ -1,0 +1,25 @@
+[package]
+name = "bio_utils"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# My direct dependencies.
+nalgebra = "*"  # Used in some places for linear algebra.
+rand = "*"
+rand_distr = "*"
+fxhash = "*"
+rayon = "*"
+itertools = "*"
+
+# Argmin dependencies.
+argmin = "*"
+argmin_testfunctions = "*"
+serde = "*"
+
+
+[profile.dev]
+opt-level = 3
+debug = 1
+

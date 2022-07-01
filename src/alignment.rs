@@ -25,7 +25,7 @@ pub fn random_seq(length: usize, rng: &mut StdRng) -> Sequence {
     seq
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AminoAcid {
     A = 0,
     R = 1,

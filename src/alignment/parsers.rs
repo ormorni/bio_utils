@@ -8,19 +8,19 @@ const STOCKHOLM_HEADER: &str = "# STOCKHOLM 1.0\n";
 const STOCKHOLM_FOOTER: &str = "//\n";
 
 
-
-enum MsaFormat {
+pub enum AlignmentFormat {
     FASTA,
     STOCKHOLM,
     OTHER
 }
 
-/// Classifies extensions to the MSA format.
-fn ext_to_format(ext: &str) -> MsaFormat {
-    match ext {
-        "fa" | "fasta" | "afa" | "raptorx" => MsaFormat::FASTA,
-        "sto" | "stockholm" => MsaFormat::STOCKHOLM,
-        _ => MsaFormat::OTHER,
+impl AlignmentFormat {
+    fn from_ext(ext: &str) -> AlignmentFormat {
+        match ext {
+            "fa" | "fasta" | "afa" | "raptorx" => AlignmentFormat::FASTA,
+            "sto" | "stockholm" => AlignmentFormat::STOCKHOLM,
+            _ => AlignmentFormat::OTHER,
+        }
     }
 }
 
@@ -39,8 +39,8 @@ impl Alignment {
             .map(|s|s.to_str().unwrap_or(""))
             .unwrap_or("");
 
-        match ext_to_format(ext) {
-            MsaFormat::FASTA => Ok(Alignment::from_fasta(&data)),
+        match AlignmentFormat::from_ext(ext) {
+            AlignmentFormat::FASTA => Ok(Alignment::from_fasta(&data)),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }
     }
@@ -56,8 +56,8 @@ impl Alignment {
             .map(|s|s.to_str().unwrap_or(""))
             .unwrap_or("");
 
-        match ext_to_format(ext) {
-            MsaFormat::FASTA => buf_writer.write(self.to_fasta().as_bytes()),
+        match AlignmentFormat::from_ext(ext) {
+            AlignmentFormat::FASTA => buf_writer.write(self.to_fasta().as_bytes()),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }
     }

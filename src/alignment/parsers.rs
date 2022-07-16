@@ -48,7 +48,8 @@ impl Alignment {
     /// Reads an alignment from a given address.
     pub fn to_address(&self, address: &str) -> std::io::Result<usize> {
         let path = Path::new(address);
-        let file = File::open(path)?;
+        let file = File::create(path)?;
+
         let mut buf_writer = BufWriter::new(file);
 
         let ext = path.extension()

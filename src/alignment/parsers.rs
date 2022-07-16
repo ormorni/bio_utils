@@ -22,6 +22,12 @@ impl AlignmentFormat {
             _ => AlignmentFormat::OTHER,
         }
     }
+
+    fn from_path(path: &Path) -> AlignmentFormat {
+        AlignmentFormat::from_ext(path.extension()
+            .map(|s|s.to_str().unwrap_or(""))
+            .unwrap_or(""))
+    }
 }
 
 /// Implementations for MSA reading and writing from various file formats.
@@ -35,11 +41,7 @@ impl Alignment {
 
         buf_reader.read_to_string(&mut data)?;
 
-        let ext = path.extension()
-            .map(|s|s.to_str().unwrap_or(""))
-            .unwrap_or("");
-
-        match AlignmentFormat::from_ext(ext) {
+        match AlignmentFormat::from_path(path) {
             AlignmentFormat::FASTA => Ok(Alignment::from_fasta(&data)),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }
@@ -52,11 +54,7 @@ impl Alignment {
 
         let mut buf_writer = BufWriter::new(file);
 
-        let ext = path.extension()
-            .map(|s|s.to_str().unwrap_or(""))
-            .unwrap_or("");
-
-        match AlignmentFormat::from_ext(ext) {
+        match AlignmentFormat::from_path(path) {
             AlignmentFormat::FASTA => buf_writer.write(self.to_fasta().as_bytes()),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }

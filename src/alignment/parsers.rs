@@ -15,6 +15,7 @@ pub enum AlignmentFormat {
 }
 
 impl AlignmentFormat {
+    /// Initializes the alignment format from an extension.
     pub fn from_ext(ext: &str) -> AlignmentFormat {
         match ext {
             "fa" | "fasta" | "afa" | "raptorx" => AlignmentFormat::FASTA,
@@ -23,10 +24,19 @@ impl AlignmentFormat {
         }
     }
 
+    /// Initializes the alignment format from a path, using its extension.
     pub fn from_path(path: &Path) -> AlignmentFormat {
         AlignmentFormat::from_ext(path.extension()
             .map(|s|s.to_str().unwrap_or(""))
             .unwrap_or(""))
+    }
+    /// Gets an extension fitting the format.
+    pub fn get_ext(&self) -> &str {
+        match self {
+            AlignmentFormat::FASTA => "fa",
+            AlignmentFormat::STOCKHOLM => "sto",
+            AlignmentFormat::OTHER => panic!(),
+        }
     }
 }
 

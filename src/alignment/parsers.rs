@@ -7,7 +7,7 @@ use crate::alignment::{Alignment, AminoAcid, Sequence};
 const STOCKHOLM_HEADER: &str = "# STOCKHOLM 1.0\n";
 const STOCKHOLM_FOOTER: &str = "//\n";
 
-
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub enum AlignmentFormat {
     FASTA,
     STOCKHOLM,

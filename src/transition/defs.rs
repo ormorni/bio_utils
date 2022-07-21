@@ -5,15 +5,14 @@ extern crate nalgebra as na;
 // Defining the properties of the table matrices for easy customization.
 pub const MAT_SIZE: usize = 21;
 pub type MatSize = na::U21;
-pub type Float = f64;
 
 // Defining the table matrix types.
-pub type Mat21Storage = na::ArrayStorage<Float, MAT_SIZE, MAT_SIZE>;
-pub type Mat21 = na::Matrix<Float, MatSize, MatSize, Mat21Storage>;
+pub type Mat21Storage = na::ArrayStorage<f64, MAT_SIZE, MAT_SIZE>;
+pub type Mat21 = na::Matrix<f64, MatSize, MatSize, Mat21Storage>;
 
 // Defining the vector types.
-pub type Vec21Storage = na::ArrayStorage<Float, MAT_SIZE, 1>;
-pub type Vec21 = na::Matrix<Float, MatSize, na::U1, Vec21Storage>;
+pub type Vec21Storage = na::ArrayStorage<f64, MAT_SIZE, 1>;
+pub type Vec21 = na::Matrix<f64, MatSize, na::U1, Vec21Storage>;
 
 /// Returns the zero matrix.
 pub fn zero_mat() -> Mat21 {
@@ -38,7 +37,7 @@ pub fn one_vec() -> Vec21 {
 pub fn uniform() -> Vec21 {
     let mut res = Vec21::default();
     for i in 0..MAT_SIZE {
-        res[i] = (1 as Float) / (MAT_SIZE as Float);
+        res[i] = (1 as f64) / (MAT_SIZE as f64);
     }
     res
 }

@@ -1,6 +1,6 @@
 extern crate nalgebra as na;
 
-use super::defs::{Float, Mat21, MAT_SIZE};
+use super::defs::{Mat21, MAT_SIZE};
 
 use crate::transition::defs::zero_mat;
 use std::ops::Mul;
@@ -9,9 +9,9 @@ use std::ops::Mul;
 // The length of the array of the taylor series factors. Used to reduce the number of matrix multiplications.
 const EXP_ARRAY_LENGTH: usize = 10;
 // The maximum exponent calculated using the taylor series instead of repeated squaring.
-const MAX_EXPONENT: Float = 0.25;
+const MAX_EXPONENT: f64 = 0.25;
 // The precision used when taking log.
-const PREC: Float = 1e-9;
+const PREC: f64 = 1e-9;
 
 #[derive(Clone, Debug)]
 pub struct TransitionTable {
@@ -32,7 +32,7 @@ impl TransitionTable {
         let mut max_val = base_table
             .iter()
             .map(|x| x.abs())
-            .fold(1. as Float, |a, b| a.max(b));
+            .fold(1. as f64, |a, b| a.max(b));
         let mut exp_factor = 0;
 
         while max_val > 0.1 {
@@ -43,7 +43,7 @@ impl TransitionTable {
 
         let mut taylor_factor = 1.;
         for i in 1..EXP_ARRAY_LENGTH {
-            taylor_factor *= i as Float;
+            taylor_factor *= i as f64;
             exp_array[i] = exp_array[i - 1] * base_table / taylor_factor;
         }
 
@@ -67,7 +67,7 @@ impl TransitionTable {
         let exp = freqs
             .iter()
             .map(|x| x.abs())
-            .fold(0. as Float, |a, b| a.max(b));
+            .fold(0. as f64, |a, b| a.max(b));
         let mut max_val = exp;
         let mut exp_index = 1;
 
@@ -78,7 +78,7 @@ impl TransitionTable {
         let mut rates = zero_mat();
 
         while max_val > PREC {
-            rates += freqs / exp_index as Float;
+            rates += freqs / exp_index as f64;
             freqs *= -base_freqs;
             max_val *= exp;
             exp_index += 1;
@@ -102,7 +102,7 @@ impl TransitionTable {
     }
 
     /// Gets the table of table probabilities for an edge of the given length.
-    pub fn get_table(&self, mut length: Float) -> Mat21 {
+    pub fn get_table(&self, mut length: f64) -> Mat21 {
         let mut res = zero_mat();
         let mut squaring_count = self.exp_factor;
         while length > MAX_EXPONENT {
@@ -124,10 +124,10 @@ impl TransitionTable {
     }
 }
 
-impl Mul<Float> for TransitionTable {
+impl Mul<f64> for TransitionTable {
     type Output = TransitionTable;
 
-    fn mul(self, rhs: Float) -> Self::Output {
+    fn mul(self, rhs: f64) -> Self::Output {
         TransitionTable::from_rates(&(self.rates * rhs))
     }
 }
@@ -135,14 +135,14 @@ impl Mul<Float> for TransitionTable {
 #[cfg(test)]
 mod tests {
     use crate::transition::defs::zero_mat;
-    use crate::transition::table::{Float, TransitionTable, MAT_SIZE};
+    use crate::transition::table::{TransitionTable, MAT_SIZE};
 
     /// Testing that taking log works.
     #[test]
     fn test_matrix_log() {
         let mut test = zero_mat();
         for i in 0..MAT_SIZE {
-            test[(i, i)] = (i as Float + 0.5) / (MAT_SIZE as Float);
+            test[(i, i)] = (i as f64 + 0.5) / (MAT_SIZE as f64);
         }
         let trans = TransitionTable::from_freqs(&test);
 
@@ -156,7 +156,7 @@ mod tests {
     fn test_matrix_exp() {
         let mut test = zero_mat();
         for i in 0..MAT_SIZE {
-            test[(i, i)] = (i as Float) / (MAT_SIZE as Float) - 0.5;
+            test[(i, i)] = (i as f64) / (MAT_SIZE as f64) - 0.5;
         }
         let trans = TransitionTable::from_rates(&test);
         let trans_table = trans.get_table(1.);
@@ -172,7 +172,7 @@ mod tests {
     }
 }
 
-const _PAM1_DATA: [[Float; 21]; 21] = [
+const _PAM1_DATA: [[f64; 21]; 21] = [
     [
         9867., 2., 9., 10., 3., 8., 17., 21., 2., 6., 4., 2., 6., 2., 22., 35., 32., 0., 2., 18.,
         0.1,

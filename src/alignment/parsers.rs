@@ -7,7 +7,7 @@ use crate::alignment::{Alignment, AminoAcid, Sequence};
 const STOCKHOLM_HEADER: &str = "# STOCKHOLM 1.0\n";
 const STOCKHOLM_FOOTER: &str = "//\n";
 
-#[derive(Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub enum AlignmentFormat {
     FASTA,
     STOCKHOLM,
@@ -53,6 +53,7 @@ impl Alignment {
 
         match AlignmentFormat::from_path(path) {
             AlignmentFormat::FASTA => Ok(Alignment::from_fasta(&data)),
+            AlignmentFormat::STOCKHOLM => Ok(Alignment::from_stockholm(&data)),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }
     }
@@ -66,6 +67,7 @@ impl Alignment {
 
         match AlignmentFormat::from_path(path) {
             AlignmentFormat::FASTA => buf_writer.write(self.to_fasta().as_bytes()),
+            AlignmentFormat::STOCKHOLM => buf_writer.write(self.to_stockholm().as_bytes()),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
         }
     }

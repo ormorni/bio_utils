@@ -8,19 +8,19 @@ use std::collections::HashMap;
 /// A struct used to sample assignments of amino acids for a position on the phylogenetic tree.
 pub struct TreeSampler<'t> {
     /// The phylogenetic tree sampled.
-    pub tree: &'t Tree,
+    pub tree: &'t Tree<String, f64>,
     /// The transition table used.
     pub table: TransitionTable,
     /// The probabilities of seeing each amino acid in each node, given only the amino acids below the noden.
-    pub(crate) probs_given_below: HashMap<&'t Node, Vec21>,
+    pub(crate) probs_given_below: HashMap<&'t Node<String, f64>, Vec21>,
 }
 
 impl<'t> TreeSampler<'t> {
     /// Calculates the probability of the assignment of each amino acid to each node recursively.
-    fn calculate_node_probs(&mut self, ali: &Alignment, index: usize, node: &'t Node) {
+    fn calculate_node_probs(&mut self, ali: &Alignment, index: usize, node: &'t Node<String, f64>) {
         // Initializing the probabilities of leaf nodes.
         if node.child_nodes.is_empty() {
-            if let Some(seq) = ali.get(&node.name) {
+            if let Some(seq) = ali.get(&node.data) {
                 let mut res = zero_vec();
                 res[seq[index] as usize] = 1.;
                 self.probs_given_below.insert(node, res);
@@ -32,9 +32,8 @@ impl<'t> TreeSampler<'t> {
             for (child_node, edge_length) in node.child_nodes.iter() {
                 self.calculate_node_probs(ali, index, child_node);
                 let child_probs = self.probs_given_below.get(child_node).unwrap();
-                let edge_length = edge_length.unwrap();
 
-                let evolved_probs = self.table.get_table(edge_length) * child_probs;
+                let evolved_probs = self.table.get_table(*edge_length) * child_probs;
                 for i in 0..MAT_SIZE {
                     probs[i] *= evolved_probs[i];
                 }
@@ -48,7 +47,7 @@ impl<'t> TreeSampler<'t> {
     pub fn from_ali(
         ali: &Alignment,
         index: usize,
-        tree: &'t Tree,
+        tree: &'t Tree<String, f64>,
         table: &TransitionTable,
     ) -> TreeSampler<'t> {
         let mut sampler = TreeSampler {
@@ -61,7 +60,7 @@ impl<'t> TreeSampler<'t> {
     }
 
     /// Samples an assignment of amino acids
-    pub fn sample(&self) -> HashMap<&'t Node, AminoAcid> {
+    pub fn sample(&self) -> HashMap<&'t Node<String, f64>, AminoAcid> {
         let mut res = HashMap::new();
         let mut parent_effect = HashMap::new();
         parent_effect.insert(&self.tree.root, uniform());
@@ -78,7 +77,7 @@ impl<'t> TreeSampler<'t> {
 
             // Choosing the amino acid.
             let mut res_aa = AminoAcid::GAP;
-            let mut chooser: Float = rand::random();
+            let mut chooser: f64 = rand::random();
             for i in 0..MAT_SIZE {
                 chooser -= probs[i];
                 if chooser <= 0. {
@@ -91,8 +90,7 @@ impl<'t> TreeSampler<'t> {
 
             // Propagating the effect.
             for (child_node, dis) in node.child_nodes.iter() {
-                let dis = dis.unwrap();
-                let evolved_table = self.table.get_table(dis);
+                let evolved_table = self.table.get_table(*dis);
                 let prob_col = evolved_table.column(res_aa as usize);
                 parent_effect.insert(child_node, Vec21::from(prob_col));
             }

@@ -20,7 +20,7 @@ fn read_path(address: &Path) -> String {
 }
 
 fn write_path(address: &Path, data: &str) {
-    let file = File::open(address).expect(&format!("Failed to open file: {}", address.to_str().unwrap()));
+    let file = File::create(address).expect(&format!("Failed to open file: {}", address.to_str().unwrap()));
     let mut buf_writer = BufWriter::new(file);
     assert_eq!(buf_writer.write(data.as_bytes()).unwrap(), data.len());
 }

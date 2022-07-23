@@ -19,7 +19,7 @@ impl AlignmentFormat {
     pub fn from_ext(ext: &str) -> AlignmentFormat {
         match ext {
             "fa" | "fasta" | "afa" | "raptorx" => AlignmentFormat::FASTA,
-            "sto" | "stockholm" => AlignmentFormat::STOCKHOLM,
+            "sto" | "stockholm" | "stk" => AlignmentFormat::STOCKHOLM,
             _ => AlignmentFormat::OTHER,
         }
     }
@@ -43,15 +43,14 @@ impl AlignmentFormat {
 /// Implementations for MSA reading and writing from various file formats.
 impl Alignment {
     /// Reads an alignment from a given address.
-    pub fn from_address(address: &str) -> std::io::Result<Alignment> {
-        let path = Path::new(address);
-        let file = File::open(path)?;
+    pub fn from_address(address: &Path) -> std::io::Result<Alignment> {
+        let file = File::open(address)?;
         let mut buf_reader = BufReader::new(file);
         let mut data = String::new();
 
         buf_reader.read_to_string(&mut data)?;
 
-        match AlignmentFormat::from_path(path) {
+        match AlignmentFormat::from_path(address) {
             AlignmentFormat::FASTA => Ok(Alignment::from_fasta(&data)),
             AlignmentFormat::STOCKHOLM => Ok(Alignment::from_stockholm(&data)),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
@@ -84,11 +83,12 @@ impl Alignment {
                 continue;
             }
             if ln.starts_with(">") {
-                last_key = Some(String::from(&ln[1..]));
-                res.data.insert(String::from(&ln[1..]), Sequence::new());
+                let name = ln[1..].split_whitespace().next().unwrap();
+                last_key = Some(String::from(name));
+                res.data.insert(String::from(name), Sequence::new());
             } else if let Some(key) = last_key.as_ref() {
                 res.get_mut(key)
-                    .expect("Last key not matching any key!")
+                    .expect(&format!("Last key not matching any key: {}!", key))
                     .extend(ln.chars().map(AminoAcid::from_char));
             }
         }

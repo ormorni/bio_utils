@@ -48,7 +48,7 @@ impl AminoAcid {
             b'W' => AminoAcid::W,
             b'Y' => AminoAcid::Y,
             b'V' => AminoAcid::V,
-            b'_' | b'*' | b'-' => AminoAcid::GAP,
+            b'_' | b'*' | b'-' | b'.' => AminoAcid::GAP,
 
             // Odd codes.
             b'B' => AminoAcid::N, // Aspargine or Aspartic Acid

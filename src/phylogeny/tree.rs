@@ -1,8 +1,5 @@
 use std::fmt::Debug;
-use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{BufReader, Read};
-use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// An implementation of a phylogenetic tree.

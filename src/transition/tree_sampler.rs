@@ -25,7 +25,7 @@ impl<'t> TreeSampler<'t> {
                 res[seq[index] as usize] = 1.;
                 self.probs_given_below.insert(node, res);
             } else {
-                panic!("Leaf node has no sequence!");
+                panic!("Leaf node has no sequence: {}!", node.data);
             }
         } else {
             let mut probs = uniform();

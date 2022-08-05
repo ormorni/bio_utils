@@ -22,12 +22,12 @@ impl Alignment {
 
 
     /// Gets an item in the alignment.
-    pub fn get(&self, index: &String) -> Option<&Vec<AminoAcid>> {
+    pub fn get(&self, index: &str) -> Option<&Vec<AminoAcid>> {
         self.data.get(index)
     }
 
     /// Gets an item in the alignment as a mutable string.
-    pub fn get_mut(&mut self, index: &String) -> Option<&mut Vec<AminoAcid>> {
+    pub fn get_mut(&mut self, index: &str) -> Option<&mut Vec<AminoAcid>> {
         self.data.get_mut(index)
     }
 

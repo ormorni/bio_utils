@@ -116,13 +116,14 @@ impl<'t> TreeSampler<'t> {
     }
 }
 
-const EDGE_RESOLUTION: f64 = 0.0001;
+const EDGE_RESOLUTION: f64 = 0.01;
 /// An accelerated tree sampling function.
 pub fn fast_sample<'tree>(ali: &Alignment, pos: usize, tree: &'tree Tree<String, f64>, table: &TransitionTable, rng: &mut impl Rng) -> HashMap<&'tree Node<String, f64>, AminoAcid> {
 
     let node_count = tree.nodes().count();
     let base_id = tree.root.id;
 
+    let mut cons = 0;
     let mut consensus_aa = vec![None; node_count];
 
     for node in tree.leaf_nodes() {
@@ -137,10 +138,13 @@ pub fn fast_sample<'tree>(ali: &Alignment, pos: usize, tree: &'tree Tree<String,
 
         if all(node.child_nodes.iter(), |(child, _)|consensus_aa[child.id - base_id] == aa) {
             consensus_aa[node.id - base_id] = aa;
+            cons += 1;
         }
     }
 
-    let mut tables = vec![table.get_table(0.); node_count];
+    let empty_table = table.get_table(0.);
+    let mut table_sources = vec![];
+    let mut tables = vec![&empty_table; node_count];
 
     let sorted: Vec<(f64, &Node<String, f64>)> = tree.edges()
         .filter(|edge|consensus_aa[edge.parent.id - base_id].is_none())
@@ -157,12 +161,25 @@ pub fn fast_sample<'tree>(ali: &Alignment, pos: usize, tree: &'tree Tree<String,
         }
 
         let mid_edge_length = (if end_idx < sorted.len() {sorted[end_idx].0} else {sorted[sorted.len() - 1].0} + sorted[start_idx].0) / 2.;
-        let table = table.get_table(mid_edge_length);
+        table_sources.push(table.get_table(mid_edge_length));
+        start_idx = end_idx;
+        end_idx = start_idx + 1;
+    }
+
+    let mut start_idx = 0;
+    let mut end_idx = 1;
+    let mut table_ind = 0;
+
+    while start_idx < sorted.len() {
+        while (end_idx < sorted.len()) && (sorted[end_idx].0 - sorted[start_idx].0 < 2. * EDGE_RESOLUTION) {
+            end_idx += 1;
+        }
         for idx in start_idx..end_idx {
-            tables[sorted[idx].1.id - base_id] = table.clone();
+            tables[sorted[idx].1.id - base_id] = &table_sources[table_ind];
         }
         start_idx = end_idx;
         end_idx = start_idx + 1;
+        table_ind += 1;
     }
 
     let mut probs: Vec<Vec21> = vec![Vec21::zeros(); tree.nodes().count()];

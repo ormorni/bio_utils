@@ -1,3 +1,4 @@
+use std::fmt;
 use std::fmt::{Display, Write as FmtWrite};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -79,29 +80,33 @@ fn parse_newick(data: &[u8]) -> Option<(Node<String, Option<f64>>, Option<f64>, 
     return Some((res, dis, ind));
 }
 
-fn node_to_newick<NodeData: Display, EdgeData: Display>(node: &Node<NodeData, EdgeData>, buf: &mut String) {
+/// Writes the data in the subtree rooted by the node to a string in Newick format.
+fn node_to_newick<NodeData: Display, EdgeData: Display>(node: &Node<NodeData, EdgeData>, buf: &mut String) -> fmt::Result {
     if !node.child_nodes.is_empty() {
-        buf.write_str("(");
+        buf.write_str("(")?;
         for (child_node, edge_data) in node.child_nodes.iter() {
             let edge_repr = edge_data.to_string();
-            node_to_newick(child_node, buf);
+            node_to_newick(child_node, buf)?;
             if !edge_repr.is_empty() {
-                buf.write_str(":");
-                buf.write_str(&edge_data.to_string());
+                buf.write_str(":")?;
+                buf.write_str(&edge_data.to_string())?;
             }
-            buf.write_str(", ");
+            buf.write_str(", ")?;
         }
         buf.pop();
         buf.pop();
         buf.push(')');
     }
 
-    buf.write_str(&node.data.to_string());
+    buf.write_str(&node.data.to_string())?;
+    
+    Ok(())
 }
 
+/// Writes the data in the tree in Newick format.
 pub fn to_newick<NodeData: Display, EdgeData: Display>(tree: &Tree<NodeData, EdgeData>) -> String {
     let mut res = String::new();
-    node_to_newick(&tree.root, &mut res);
+    node_to_newick(&tree.root, &mut res).unwrap();
     res.push(';');
     res
 }
@@ -156,7 +161,7 @@ mod tests {
 
     /// Testing postorder iteration.
     #[test]
-    fn test_newick_reparse() {
+    fn test_newick_parse() {
         let data = String::from("(A, (B, C)D, E, F)G;");
 
         let parsed_tree = from_newick(&data);

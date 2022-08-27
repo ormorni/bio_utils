@@ -5,9 +5,8 @@ use crate::phylogeny::tree::{Node, Tree};
 use crate::transition::table::TransitionTable;
 use std::collections::HashMap;
 use itertools::{Itertools, all};
-use lazy_static::lazy_static;
 use rand::distributions::{Uniform, Distribution};
-use rand::{Rng, RngCore};
+use rand::Rng;
 
 /// A struct used to sample assignments of amino acids for a position on the phylogenetic tree.
 pub struct TreeSampler<'t> {
@@ -15,12 +14,12 @@ pub struct TreeSampler<'t> {
     pub tree: &'t Tree<String, f64>,
     /// The transition table used.
     pub table: TransitionTable,
-    /// The probabilities of seeing each amino acid in each node, given only the amino acids below the noden.
+    /// The probabilities of seeing each amino acid in each node, given only the amino acids below the node.
     pub(crate) probs_given_below: HashMap<&'t Node<String, f64>, Vec21>,
 }
 
 fn choose_by_probs(v: &Vec21, rng: &mut impl Rng) -> usize {
-    let mut uniform = rand_distr::Uniform::new(0., 1.);
+    let uniform = Uniform::new(0., 1.);
     let mut chooser = uniform.sample(rng);
     for i in 0..20 {
         chooser -= v[i];
@@ -123,7 +122,6 @@ pub fn fast_sample<'tree>(ali: &Alignment, pos: usize, tree: &'tree Tree<String,
     let node_count = tree.nodes().count();
     let base_id = tree.root.id;
 
-    let mut cons = 0;
     let mut consensus_aa = vec![None; node_count];
 
     for node in tree.leaf_nodes() {
@@ -138,7 +136,6 @@ pub fn fast_sample<'tree>(ali: &Alignment, pos: usize, tree: &'tree Tree<String,
 
         if all(node.child_nodes.iter(), |(child, _)|consensus_aa[child.id - base_id] == aa) {
             consensus_aa[node.id - base_id] = aa;
-            cons += 1;
         }
     }
 

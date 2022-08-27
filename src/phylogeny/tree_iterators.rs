@@ -173,8 +173,7 @@ impl<'t, NodeData, EdgeData> Tree<NodeData, EdgeData> {
 
 #[cfg(test)]
 mod tests {
-    use crate::phylogeny::tree::Tree;
-    use crate::phylogeny::tree_parsers::{from_newick, to_newick};
+    use crate::phylogeny::tree_parsers::{from_newick};
 
     /// Testing postorder iteration.
     #[test]

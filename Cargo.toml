@@ -14,12 +14,6 @@ rayon = "*"
 itertools = "*"
 lazy_static = "*"
 
-# Argmin dependencies.
-argmin = "*"
-argmin_testfunctions = "*"
-serde = "*"
-
 [profile.dev]
 opt-level = 3
 debug = 1
-

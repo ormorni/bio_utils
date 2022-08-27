@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Lines, Read, Write};
 use std::path::Path;
 use itertools::Itertools;
-use serde::de::Unexpected::Str;
 use crate::alignment::{Alignment, AminoAcid, Sequence};
 
 const STOCKHOLM_HEADER: &str = "# STOCKHOLM 1.0\n";
@@ -53,7 +52,7 @@ impl FastaIter {
     /// An internal function possibly succeeding in making an iterator.
     fn make_reader(address: &Path) -> Option<FastaIter> {
         let file = File::open(address).ok()?;
-        let mut reader = BufReader::new(file);
+        let reader = BufReader::new(file);
         Some(FastaIter {
             reader: Some(reader.lines()),
             name: String::new(),
@@ -223,13 +222,13 @@ mod tests {
     use crate::alignment::{Alignment, AminoAcid};
     use crate::test_utils::SEED;
 
-    const ALNUM: &str = "abcdefghijklmnopqrstuvwxysABCDEFGHIJKLMNOPQRSTUVWXYZ_|0123456789";
+    const ALPHANUMERIC: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_|0123456789";
 
     fn random_alignment(rng: &mut StdRng) -> Alignment {
         let mut ali = Alignment::new();
 
         for _ in 0..10 {
-            let name = (0..10).map(|_|ALNUM.chars().nth(rng.gen_range(0..ALNUM.len())).unwrap()).collect::<String>();
+            let name = (0..10).map(|_| ALPHANUMERIC.chars().nth(rng.gen_range(0..ALPHANUMERIC.len())).unwrap()).collect::<String>();
             let seq = (0..50).map(|_|AminoAcid::iter().choose(rng).unwrap().clone()).collect_vec();
             ali.insert(&name, &seq);
         }

@@ -9,9 +9,9 @@ pub struct PreorderNodeIter<'t, NodeData, EdgeData> {
 }
 
 impl<'t, NodeData, EdgeData> PreorderNodeIter<'t, NodeData, EdgeData> {
-    fn new(tree: &'t Tree<NodeData, EdgeData>) -> PreorderNodeIter<'t, NodeData, EdgeData> {
+    fn new(node: &'t Node<NodeData, EdgeData>) -> PreorderNodeIter<'t, NodeData, EdgeData> {
         PreorderNodeIter {
-            node_stack: vec![&tree.root],
+            node_stack: vec![node],
         }
     }
 }
@@ -39,9 +39,9 @@ pub struct PostorderNodeIter<'t, NodeData, EdgeData> {
 }
 
 impl<'t, NodeData, EdgeData> PostorderNodeIter<'t, NodeData, EdgeData> {
-    fn new(tree: &'t Tree<NodeData, EdgeData>) -> PostorderNodeIter<'t, NodeData, EdgeData> {
+    fn new(node: &'t Node<NodeData, EdgeData>) -> PostorderNodeIter<'t, NodeData, EdgeData> {
         PostorderNodeIter {
-            node_stack: vec![(&tree.root, false)],
+            node_stack: vec![(node, false)],
         }
     }
 }
@@ -119,6 +119,37 @@ impl<'t, NodeData, EdgeData> Iterator for PostorderEdgeIterator<'t, NodeData, Ed
 impl<'t, NodeData, EdgeData> Tree<NodeData, EdgeData> {
     /// Returns an iterator over the nodes of the tree, in preorder iteration order.
     pub fn preorder_iter(&'t self) -> PreorderNodeIter<'t, NodeData, EdgeData> {
+        self.root.preorder_iter()
+    }
+    /// Returns an iterator over the nodes of the tree, in postorder iteration order.
+    pub fn postorder_iter(&'t self) -> PostorderNodeIter<'t, NodeData, EdgeData> {
+        self.root.postorder_iter()
+    }
+    /// A generic iterator over the nodes, with no guaranteed order.
+    pub fn nodes(&'t self) -> PreorderNodeIter<'t, NodeData, EdgeData> {
+        self.root.nodes()
+    }
+    /// Returns an iterator over the edges of the tree, in preorder iteration order.
+    pub fn preorder_edge_iter(&'t self) -> PreorderEdgeIterator<'t, NodeData, EdgeData> {
+        self.root.preorder_edge_iter()
+    }
+    /// Returns an iterator over the edges of the tree, in posrtorder iteration order.
+    pub fn postorder_edge_iter(&'t self) -> PostorderEdgeIterator<'t, NodeData, EdgeData> {
+        self.root.postorder_edge_iter()
+    }
+    /// A generic iterator over the edges, with no guaranteed iteration order.
+    pub fn edges(&'t self) -> PreorderEdgeIterator<'t, NodeData, EdgeData> {
+        self.root.edges()
+    }
+    /// An iterator over the leaf nodes of the tree.
+    pub fn leaf_nodes(&'t self) -> impl Iterator<Item = &'t Node<NodeData, EdgeData>> {
+        self.root.leaf_nodes()
+    }
+}
+
+impl<'t, NodeData, EdgeData> Node<NodeData, EdgeData> {
+    /// Returns an iterator over the nodes of the tree, in preorder iteration order.
+    pub fn preorder_iter(&'t self) -> PreorderNodeIter<'t, NodeData, EdgeData> {
         PreorderNodeIter::new(self)
     }
 
@@ -136,11 +167,10 @@ impl<'t, NodeData, EdgeData> Tree<NodeData, EdgeData> {
     pub fn preorder_edge_iter(&'t self) -> PreorderEdgeIterator<'t, NodeData, EdgeData> {
         PreorderEdgeIterator {
             node_stack: self
-                .root
                 .child_nodes
                 .iter()
                 .map(|(child, data)| Edge {
-                    parent: &self.root,
+                    parent: self,
                     child,
                     data,
                 })
@@ -155,7 +185,7 @@ impl<'t, NodeData, EdgeData> Tree<NodeData, EdgeData> {
         let node = node_iter.next();
         PostorderEdgeIterator {
             node_iter,
-            curr_node: node.unwrap_or(&self.root),
+            curr_node: node.unwrap_or(&self),
             curr_index: 0,
         }
     }

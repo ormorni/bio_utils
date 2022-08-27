@@ -1,7 +1,8 @@
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Error, ErrorKind, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Lines, Read, Write};
 use std::path::Path;
 use itertools::Itertools;
+use serde::de::Unexpected::Str;
 use crate::alignment::{Alignment, AminoAcid, Sequence};
 
 const STOCKHOLM_HEADER: &str = "# STOCKHOLM 1.0\n";
@@ -40,6 +41,73 @@ impl AlignmentFormat {
     }
 }
 
+pub struct FastaIter {
+    reader: Option<Lines<BufReader<File>>>,
+    name: String,
+    seq: String,
+}
+
+/// An iterator iterating over the sequences in a FASTA file, without storing the whole file in memory.
+/// Useful for large files.
+impl FastaIter {
+    /// An internal function possibly succeeding in making an iterator.
+    fn make_reader(address: &Path) -> Option<FastaIter> {
+        let file = File::open(address).ok()?;
+        let mut reader = BufReader::new(file);
+        Some(FastaIter {
+            reader: Some(reader.lines()),
+            name: String::new(),
+            seq: String::new(),
+        })
+    }
+
+    pub fn new(address: &Path) -> FastaIter {
+        if let Some(f_iter) = FastaIter::make_reader(address) {
+            f_iter
+        } else {
+            FastaIter {
+                reader: None,
+                name: String::new(),
+                seq: String::new(),
+            }
+        }
+    }
+}
+
+impl Iterator for FastaIter {
+    type Item = (String, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        println!("Next called!");
+        while let Some(line) = self.reader.as_mut()?.next() {
+            let line = line.unwrap();
+            println!("Read line {}", &line);
+
+            if line.starts_with(">") {
+                let res_name = self.name.clone();
+                let res_seq = self.seq.clone();
+                self.name = String::from(&line[1..]);
+                self.seq = String::new();
+                return Some((res_name, res_seq));
+            } else {
+                self.seq.extend(line.trim().chars());
+            }
+        }
+        // Yielding the last sequence.
+        if !self.name.is_empty() {
+            let res_name = self.name.clone();
+            let res_seq = self.seq.clone();
+            self.name = String::new();
+            self.seq = String::new();
+            return Some((res_name, res_seq));
+        }
+
+        None
+    }
+}
+
+
+
 /// Implementations for MSA reading and writing from various file formats.
 impl Alignment {
     /// Reads an alignment from a given address.
@@ -58,13 +126,12 @@ impl Alignment {
     }
 
     /// Reads an alignment from a given address.
-    pub fn to_address(&self, address: &str) -> std::io::Result<usize> {
-        let path = Path::new(address);
-        let file = File::create(path)?;
+    pub fn to_address(&self, address: &Path) -> std::io::Result<usize> {
+        let file = File::create(address)?;
 
         let mut buf_writer = BufWriter::new(file);
 
-        match AlignmentFormat::from_path(path) {
+        match AlignmentFormat::from_path(address) {
             AlignmentFormat::FASTA => buf_writer.write(self.to_fasta().as_bytes()),
             AlignmentFormat::STOCKHOLM => buf_writer.write(self.to_stockholm().as_bytes()),
             _ => Err(Error::new(ErrorKind::Other, "Unrecognized extension!")),
@@ -72,7 +139,7 @@ impl Alignment {
     }
 
     /// Initializes an MSA from a string in the FASTA format.
-    pub fn from_fasta(data: &String) -> Alignment {
+    pub fn from_fasta(data: &str) -> Alignment {
         let mut res = Alignment::new();
 
         let mut last_key: Option<String> = None;
@@ -110,7 +177,7 @@ impl Alignment {
     }
 
     /// Initializes an MSA from a string in the FASTA format.
-    pub fn from_stockholm(data: &String) -> Alignment {
+    pub fn from_stockholm(data: &str) -> Alignment {
         let mut res = Alignment::new();
 
         for raw_ln in data.lines() {

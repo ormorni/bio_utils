@@ -151,6 +151,26 @@ impl AminoAcid {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::alignment::AminoAcid;
+
+    /// Testing that the amino acid int conversions work properly.
+    #[test]
+    fn test_amino_acid_int() {
+        for i in 0..21 {
+            assert_eq!(i as usize, AminoAcid::from_index(i) as usize);
+        }
+    }
+
+    #[test]
+    fn test_amino_acid_char() {
+        for (i, c) in "ARNDCQEGHILKMFPSTWYV-".chars().enumerate() {
+            assert_eq!(AminoAcid::from_char(c), AminoAcid::from_index(i as usize));
+        }
+    }
+}
+
 impl Display for AminoAcid {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.string())

@@ -13,6 +13,8 @@ fxhash = "*"
 rayon = "*"
 itertools = "*"
 lazy_static = "*"
+rustfft = "*"
+realfft = "*"
 
 [profile.dev]
 opt-level = 3

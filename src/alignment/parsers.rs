@@ -74,20 +74,19 @@ impl FastaIter {
 }
 
 impl Iterator for FastaIter {
-    type Item = (String, String);
+    type Item = (String, Sequence);
 
     fn next(&mut self) -> Option<Self::Item> {
-        println!("Next called!");
         while let Some(line) = self.reader.as_mut()?.next() {
             let line = line.unwrap();
-            println!("Read line {}", &line);
-
             if line.starts_with(">") {
                 let res_name = self.name.clone();
-                let res_seq = self.seq.clone();
+                let res_seq = self.seq.chars().map(|c|AminoAcid::from_char(c)).collect_vec();
                 self.name = String::from(&line[1..]);
                 self.seq = String::new();
-                return Some((res_name, res_seq));
+                if !res_name.is_empty() {
+                    return Some((res_name, res_seq));
+                }
             } else {
                 self.seq.extend(line.trim().chars());
             }
@@ -95,7 +94,7 @@ impl Iterator for FastaIter {
         // Yielding the last sequence.
         if !self.name.is_empty() {
             let res_name = self.name.clone();
-            let res_seq = self.seq.clone();
+            let res_seq = self.seq.chars().map(|c|AminoAcid::from_char(c)).collect_vec();
             self.name = String::new();
             self.seq = String::new();
             return Some((res_name, res_seq));

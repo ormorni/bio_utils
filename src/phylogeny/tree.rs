@@ -85,7 +85,10 @@ impl <NodeData, EdgeData> Node<NodeData, EdgeData> {
         self.child_nodes.is_empty()
     }
 
-
+    pub fn child_edges(&self) -> impl Iterator<Item=Edge<NodeData, EdgeData>> + Clone {
+        self.child_nodes.iter()
+            .map(|(node, data)|Edge::new(self, node, data))
+    }
 }
 
 impl <NodeData, EdgeData: Clone> Node<NodeData, EdgeData> {

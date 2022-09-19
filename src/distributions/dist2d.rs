@@ -64,6 +64,28 @@ impl Dist2D {
         res
     }
 
+    /// Initializes a distribution from a probability density function.
+    pub fn from_fn(f: impl Fn((f64, f64)) -> f64, lower_bound: (f64, f64), upper_bound: (f64, f64), drop: f64, scale: (f64, f64)) -> Dist2D {
+        let lower_idx = ((lower_bound.0 * scale.0).floor() as isize, (lower_bound.1 * scale.1).floor() as isize);
+        let upper_idx = ((upper_bound.0 * scale.0 + 1.).ceil() as isize, (upper_bound.1 * scale.1 + 1.).ceil() as isize);
+
+        assert!(upper_idx.0 > lower_idx.0);
+        assert!(upper_idx.1 > lower_idx.1);
+
+        let mut arr = vec![vec![0.; (upper_idx.1 - lower_idx.1) as usize]; (upper_idx.0 - lower_idx.0) as usize];
+
+        for idx in iproduct!(0..arr.len(), 0..arr[0].len()) {
+            let mapped = ((idx.0 as f64 + lower_idx.1 as f64) / scale.0,
+                          (idx.1 as f64 + lower_idx.1 as f64) / scale.1);
+            arr[idx.0][idx.1] = f(mapped) / scale.0 / scale.1;
+        }
+
+        let mut dist = Dist2D::new(drop, scale);
+        dist.data = arr;
+        dist.shift = (-lower_idx.0, -lower_idx.1);
+        dist
+    }
+
     /// Trims empty cells from the ProbArray, while keeping the ProbArray in a rectangular shape.
     pub fn trim(&mut self) {
         let mut start = (0, 0);
@@ -270,5 +292,21 @@ mod tests_2d {
             }
         });
         assert!((one_sixth_normal - 1. / 6.).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_from_fn() {
+        let dist = Dist2D::from_fn(|(x, y)|(-x.powi(2) - y.powi(2)).exp(), (-4., -4.), (4., 4.), 0., (10., 10.));
+
+        let lower_right = dist.integrate(|(x, y)| match x.total_cmp(&0.) {
+            Ordering::Less => 0.,
+            Ordering::Equal => 0.5,
+            Ordering::Greater => 1.,
+        } * match y.total_cmp(&0.) {
+            Ordering::Less => 0.,
+            Ordering::Equal => 0.5,
+            Ordering::Greater => 1.,
+        });
+        assert_close(lower_right * 4., PI);
     }
 }

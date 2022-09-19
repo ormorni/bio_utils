@@ -54,6 +54,7 @@ impl AminoAcid {
             b'B' => AminoAcid::N, // Aspargine or Aspartic Acid
             b'Z' => AminoAcid::Q, // Glutamine or Glutamic Acid
             b'U' => AminoAcid::S, // Selenocysteine
+            b'O' => AminoAcid::K, // Pyrrolysine
             b'X' => AminoAcid::A, // Unrecognized amino acid
 
             _ => panic!(

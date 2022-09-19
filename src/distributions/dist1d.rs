@@ -92,7 +92,7 @@ impl Dist1D {
     }
 
     /// The length of the internal array.
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 

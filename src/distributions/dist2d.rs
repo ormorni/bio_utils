@@ -10,7 +10,7 @@ pub struct Dist2D {
     drop: f64,
     /// The resolution in which the distribution is kept.
     scale: (f64, f64),
-    /// The shift to the data in the ProbArray.
+    /// The shift to the data in the distribution.
     shift: (isize, isize),
 }
 
@@ -33,7 +33,7 @@ impl Dist2D {
         )
     }
 
-    /// Initializes a ProbArray from an f64.
+    /// Initializes a Dist2D as an atomic distribution on the given point.
     pub fn from_f64(val: (f64, f64), drop: f64, scale: (f64, f64)) -> Dist2D {
         let mut res = Dist2D::new(drop, scale);
 
@@ -66,8 +66,8 @@ impl Dist2D {
 
     /// Initializes a distribution from a probability density function.
     pub fn from_fn(f: impl Fn((f64, f64)) -> f64, lower_bound: (f64, f64), upper_bound: (f64, f64), drop: f64, scale: (f64, f64)) -> Dist2D {
-        let lower_idx = ((lower_bound.0 * scale.0).floor() as isize, (lower_bound.1 * scale.1).floor() as isize);
-        let upper_idx = ((upper_bound.0 * scale.0 + 1.).ceil() as isize, (upper_bound.1 * scale.1 + 1.).ceil() as isize);
+        let lower_idx = ((lower_bound.0 / scale.0).floor() as isize, (lower_bound.1 / scale.1).floor() as isize);
+        let upper_idx = ((upper_bound.0 / scale.0 + 1.).ceil() as isize, (upper_bound.1 / scale.1 + 1.).ceil() as isize);
 
         assert!(upper_idx.0 > lower_idx.0);
         assert!(upper_idx.1 > lower_idx.1);
@@ -83,24 +83,25 @@ impl Dist2D {
         let mut dist = Dist2D::new(drop, scale);
         dist.data = arr;
         dist.shift = (-lower_idx.0, -lower_idx.1);
+        dist.trim();
         dist
     }
 
-    /// Trims empty cells from the ProbArray, while keeping the ProbArray in a rectangular shape.
+    /// Trims empty cells from the Dist2D's internal array, while keeping it in a rectangular shape.
     pub fn trim(&mut self) {
         let mut start = (0, 0);
         let mut end = self.shape();
 
-        while (start.0 < end.0) && (start.1 < end.1) {
+        'trim_iteration: while (start.0 < end.0) && (start.1 < end.1) {
             // Testing removing the first row.
             while self.data[start.0][start.1..end.1].iter().sum::<f64>() < self.drop {
                 start.0 += 1;
-                continue;
+                continue 'trim_iteration;
             }
             // Testing removing the last row.
             if self.data[end.0 - 1].iter().sum::<f64>() < self.drop {
                 end.0 -= 1;
-                continue;
+                continue 'trim_iteration;
             }
             // Testing removing the first column.
             if self.data[start.0..end.0]
@@ -110,7 +111,7 @@ impl Dist2D {
                 < self.drop
             {
                 start.1 += 1;
-                continue;
+                continue 'trim_iteration;
             }
             // Testing removing the last column.
             if self.data[start.0..end.0]
@@ -120,7 +121,7 @@ impl Dist2D {
                 < self.drop
             {
                 end.1 -= 1;
-                continue;
+                continue 'trim_iteration;
             }
             break;
         }

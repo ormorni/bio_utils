@@ -1,7 +1,7 @@
 use std::collections::hash_map::{Iter, IterMut, Keys, Values};
 use fxhash::FxHashMap;
 
-use crate::alignment::{AminoAcid, Sequence};
+use crate::alignment::Sequence;
 
 
 /// A class used to store multiple sequence alignments.

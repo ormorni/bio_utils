@@ -1,6 +1,5 @@
-use itertools::{iproduct, Itertools};
 use std::fmt::{Debug, Formatter};
-use crate::distributions::{convolve, convolve_2d};
+use crate::distributions::convolve;
 
 /// A struct holding the probabilities of a random variable over the non-negative reals.
 #[derive(Clone)]
@@ -47,13 +46,13 @@ impl Dist1D {
         let target_ind = val * res.scale;
 
         // The index is mapped to the average of two values.
-        let higher_frac = target_ind - target_ind.floor();
-        let lower_frac = 1. - higher_frac;
+        let higher_part = target_ind - target_ind.floor();
+        let lower_part = 1. - higher_part;
 
-        if higher_frac != 0. {
-            res.data = vec![lower_frac, higher_frac];
+        if higher_part != 0. {
+            res.data = vec![lower_part, higher_part];
         } else {
-            res.data = vec![lower_frac];
+            res.data = vec![lower_part];
         }
         res.shift = -(target_ind.floor() as isize);
 

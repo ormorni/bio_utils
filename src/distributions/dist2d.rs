@@ -44,7 +44,10 @@ impl Dist2D {
             target_ind.0 - target_ind.0.floor(),
             target_ind.1 - target_ind.1.floor(),
         );
-        let lower_frac = (1. - higher_frac.0, 1. - higher_frac.1);
+        let lower_frac = (
+            1. - higher_frac.0,
+            1. - higher_frac.1
+        );
 
         res.data = match (higher_frac.0 == 0., higher_frac.1 == 0.) {
             (true, true) => vec![vec![1.]],
@@ -66,8 +69,8 @@ impl Dist2D {
 
     /// Initializes a distribution from a probability density function.
     pub fn from_fn(f: impl Fn((f64, f64)) -> f64, lower_bound: (f64, f64), upper_bound: (f64, f64), drop: f64, scale: (f64, f64)) -> Dist2D {
-        let lower_idx = ((lower_bound.0 / scale.0).floor() as isize, (lower_bound.1 / scale.1).floor() as isize);
-        let upper_idx = ((upper_bound.0 / scale.0 + 1.).ceil() as isize, (upper_bound.1 / scale.1 + 1.).ceil() as isize);
+        let lower_idx = ((lower_bound.0 * scale.0).floor() as isize, (lower_bound.1 * scale.1).floor() as isize);
+        let upper_idx = ((upper_bound.0 * scale.0 + 1.).ceil() as isize, (upper_bound.1 * scale.1 + 1.).ceil() as isize);
 
         assert!(upper_idx.0 > lower_idx.0);
         assert!(upper_idx.1 > lower_idx.1);
@@ -75,14 +78,18 @@ impl Dist2D {
         let mut arr = vec![vec![0.; (upper_idx.1 - lower_idx.1) as usize]; (upper_idx.0 - lower_idx.0) as usize];
 
         for idx in iproduct!(0..arr.len(), 0..arr[0].len()) {
-            let mapped = ((idx.0 as f64 + lower_idx.1 as f64) / scale.0,
-                          (idx.1 as f64 + lower_idx.1 as f64) / scale.1);
+            let mapped =
+                ((idx.0 as f64 + lower_idx.0 as f64) / scale.0,
+                 (idx.1 as f64 + lower_idx.1 as f64) / scale.1);
+
             arr[idx.0][idx.1] = f(mapped) / scale.0 / scale.1;
         }
 
         let mut dist = Dist2D::new(drop, scale);
         dist.data = arr;
         dist.shift = (-lower_idx.0, -lower_idx.1);
+
+
         dist.trim();
         dist
     }
@@ -234,11 +241,13 @@ impl Dist2D {
 mod tests_2d {
     use std::cmp::Ordering;
     use std::f64::consts::PI;
+    use rand::{Rng, SeedableRng};
+    use rand::rngs::StdRng;
     use crate::distributions::dist2d::Dist2D;
-    use crate::test_utils::assert_close;
+    use crate::test_utils::{assert_close, SEED};
 
     #[test]
-    fn test_conv() {
+    fn test_convolve() {
         let f1 = Dist2D::from_f64((0.5, 0.5), 0., (1., 1.));
         let f2 = Dist2D::from_f64((-0.5, -0.5), 0., (1., 1.));
         let conv = f1.convolve(&f2);
@@ -255,7 +264,7 @@ mod tests_2d {
     }
 
     #[test]
-    fn test_av() {
+    fn test_weighted_average() {
         let f1 = Dist2D::from_f64((0.5, 0.5), 0., (1., 1.));
         let f2 = Dist2D::from_f64((-0.5, -0.5), 0., (1., 1.));
         let av = Dist2D::weighted_average(&f1, 0.5, &f2, 0.5);
@@ -297,7 +306,7 @@ mod tests_2d {
 
     #[test]
     fn test_from_fn() {
-        let dist = Dist2D::from_fn(|(x, y)|(-x.powi(2) - y.powi(2)).exp(), (-4., -4.), (4., 4.), 0., (10., 10.));
+        let dist = Dist2D::from_fn(|(x, y)|(-x.powi(2) - y.powi(2)).exp(), (-4., -4.), (4., 4.), 0., (15., 10.));
 
         let lower_right = dist.integrate(|(x, y)| match x.total_cmp(&0.) {
             Ordering::Less => 0.,
@@ -309,5 +318,26 @@ mod tests_2d {
             Ordering::Greater => 1.,
         });
         assert_close(lower_right * 4., PI);
+    }
+
+    #[test]
+    fn test_from_f64() {
+        let mut rng = StdRng::from_seed(SEED);
+        for _ in 0..100 {
+            let f1: f64 = rng.gen();
+            let f2: f64 = rng.gen();
+
+            let dist = Dist2D::from_f64((f1, f2), 0., (1., 1.));
+            assert_close(dist.integrate(|(x1, _)|x1), f1);
+            assert_close(dist.integrate(|(_, x2)|x2), f2);
+        }
+
+        let dist = Dist2D::from_f64((0.7, 0.), 0., (1., 1.));
+        assert_close(dist.integrate(|(x1, _)|x1), 0.7);
+        assert_close(dist.integrate(|(_, x2)|x2), 0.);
+
+        let dist = Dist2D::from_f64((0., 0.7), 0., (1., 1.));
+        assert_close(dist.integrate(|(x1, _)|x1), 0.);
+        assert_close(dist.integrate(|(_, x2)|x2), 0.7);
     }
 }

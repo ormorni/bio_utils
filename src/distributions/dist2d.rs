@@ -7,11 +7,11 @@ pub struct Dist2D {
     /// The probability distribution.
     pub data: Vec<Vec<f64>>,
     /// The maximal value in a cell before it is dropped.
-    drop: f64,
+    pub drop: f64,
     /// The resolution in which the distribution is kept.
-    scale: (f64, f64),
+    pub scale: (f64, f64),
     /// The shift to the data in the distribution.
-    shift: (isize, isize),
+    pub shift: (isize, isize),
 }
 
 impl Dist2D {
@@ -217,8 +217,6 @@ impl Dist2D {
         }
 
         res.trim();
-
-
 
         res
     }

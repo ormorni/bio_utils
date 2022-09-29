@@ -5,7 +5,7 @@ use crate::distributions::convolve;
 #[derive(Clone)]
 pub struct Dist1D {
     /// The probability distribution.
-    pub(crate) data: Vec<f64>,
+    pub data: Vec<f64>,
     /// The maximal value in a cell before it is dropped.
     drop: f64,
     /// The resolution in which the distribution is kept.

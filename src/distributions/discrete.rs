@@ -6,7 +6,7 @@ use rand::Rng;
 /// A distribution over a discrete set of elements.
 #[derive(Clone, PartialEq)]
 pub struct DiscreteDist<T> where T: Hash + Eq + Clone {
-    data: FxHashMap<T, f64>,
+    pub data: FxHashMap<T, f64>,
 }
 
 impl <T> DiscreteDist<T> where T: Hash + Eq + Debug + Clone {

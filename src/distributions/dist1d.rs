@@ -154,7 +154,7 @@ mod tests_1d {
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
     use std::cmp::Ordering;
-    use crate::test_utils::{assert_close, SEED};
+    use crate::utils::tests::{assert_close, SEED};
 
     #[test]
     fn test_conv() {

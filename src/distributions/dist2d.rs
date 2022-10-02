@@ -242,7 +242,7 @@ mod tests_2d {
     use rand::{Rng, SeedableRng};
     use rand::rngs::StdRng;
     use crate::distributions::dist2d::Dist2D;
-    use crate::test_utils::{assert_close, SEED};
+    use crate::utils::tests::{assert_close, SEED};
 
     #[test]
     fn test_convolve() {

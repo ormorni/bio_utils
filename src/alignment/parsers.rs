@@ -219,7 +219,7 @@ mod tests {
     use itertools::Itertools;
     use rand::prelude::{IteratorRandom, Rng, SeedableRng, StdRng};
     use crate::alignment::{Alignment, AminoAcid};
-    use crate::test_utils::SEED;
+    use crate::utils::tests::SEED;
 
     const ALPHANUMERIC: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_|0123456789";
 

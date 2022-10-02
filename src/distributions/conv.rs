@@ -189,7 +189,7 @@ mod tests {
     use itertools::{izip, Itertools};
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
-    use crate::test_utils::{assert_close, SEED};
+    use crate::utils::tests::{assert_close, SEED};
 
     /// Tests that the FFT-based convolution and the regular convolution return the same results.
     #[test]

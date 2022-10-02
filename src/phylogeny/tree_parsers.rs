@@ -103,34 +103,50 @@ fn node_to_newick<NodeData: Display, EdgeData: Display>(node: &Node<NodeData, Ed
     Ok(())
 }
 
-/// Writes the data in the tree in Newick format.
-pub fn to_newick<NodeData: Display, EdgeData: Display>(tree: &Tree<NodeData, EdgeData>) -> String {
-    let mut res = String::new();
-    node_to_newick(&tree.root, &mut res).unwrap();
-    res.push(';');
-    res
+impl <NodeData: Display, EdgeData: Display> Tree<NodeData, EdgeData> {
+    /// Writes the data in the tree in Newick format.
+    pub fn to_newick(&self) -> String {
+        let mut res = String::new();
+        node_to_newick(&self.root, &mut res).unwrap();
+        res.push(';');
+        res
+    }
+
+    pub fn to_newick_path(&self, path: &Path) {
+        write_path(path, &self.to_newick());
+    }
 }
 
-pub fn to_newick_path<NodeData: Display, EdgeData: Display>(path: &Path, tree: &Tree<NodeData, EdgeData>) {
-    write_path(path, &to_newick(tree));
+impl Tree<String, Option<f64>> {
+    /// Parses data in newick format to a phylogenetic tree.
+    pub fn from_newick(data: &str) -> Self {
+        let (node, dis, _) = parse_newick(data.trim().as_bytes()).unwrap();
+        assert!(dis.is_none(), "Distance set on root node!");
+        return Tree { root: node };
+    }
+
+    pub fn from_newick_path(path: &Path) -> Self {
+        assert_eq!(path.extension().unwrap().to_str().unwrap(), "newick");
+        Tree::<String, Option<f64>>::from_newick(&read_path(path))
+    }
 }
 
-/// Parses data in newick format to a phylogenetic tree.
-pub fn from_newick(data: &str) -> Tree<String, Option<f64>> {
-    let (node, dis, _) = parse_newick(data.trim().as_bytes()).unwrap();
-    assert!(dis.is_none(), "Distance set on root node!");
-    return Tree { root: node };
+impl Tree<String, f64> {
+    /// Parses data in newick format to a phylogenetic tree.
+    pub fn from_newick(data: &str) -> Self {
+        Tree::<String, Option<f64>>::from_newick(data).map_edge_data(|f|f.expect("Tree::<String, f64> parsed from newick with no edge data!"))
+    }
+
+    pub fn from_newick_path(path: &Path) -> Self {
+        assert_eq!(path.extension().unwrap().to_str().unwrap(), "newick");
+        Tree::<String, f64>::from_newick(&read_path(path))
+    }
 }
 
-pub fn from_newick_path(path: &Path) -> Tree<String, Option<f64>> {
-    assert_eq!(path.extension().unwrap().to_str().unwrap(), "newick");
-    from_newick(&read_path(path))
-}
 
 #[cfg(test)]
 mod tests {
     use crate::phylogeny::tree::{Node, Tree};
-    use crate::phylogeny::tree_parsers::{from_newick, to_newick};
 
     /// Testing that the tree initialization from newick strings works as expected, and that
     #[test]
@@ -142,7 +158,7 @@ mod tests {
 
         let data = String::from("  (A : 1 , B : .1 ,  C ) root ;  \n");
 
-        let parsed_tree = from_newick(&data);
+        let parsed_tree = Tree::<String, Option<f64>>::from_newick(&data);
 
         assert_eq!(&cons_tree.root.data, &parsed_tree.root.data);
         assert_eq!(parsed_tree.root.child_nodes.len(), 3);
@@ -164,8 +180,8 @@ mod tests {
     fn test_newick_parse() {
         let data = String::from("(A, (B, C)D, E, F)G;");
 
-        let parsed_tree = from_newick(&data);
-        let newick = to_newick(&parsed_tree.map_edge_data(|_|""));
+        let parsed_tree = Tree::<String, Option<f64>>::from_newick(&data);
+        let newick = parsed_tree.map_edge_data(|_|"").to_newick();
 
         assert_eq!(data, newick);
     }

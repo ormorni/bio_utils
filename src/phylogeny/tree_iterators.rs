@@ -203,14 +203,14 @@ impl<'t, NodeData, EdgeData> Node<NodeData, EdgeData> {
 
 #[cfg(test)]
 mod tests {
-    use crate::phylogeny::tree_parsers::{from_newick};
+    use crate::phylogeny::tree::Tree;
 
     /// Testing postorder iteration.
     #[test]
     fn test_postorder() {
         let data = String::from("(A, (B, C)D, E, F)G;");
 
-        let parsed_tree = from_newick(&data);
+        let parsed_tree = Tree::<String, Option<f64>>::from_newick(&data);
 
         let expected_names = vec!["A", "B", "C", "D", "E", "F", "G"];
         let mut iter_names = Vec::new();
@@ -226,7 +226,7 @@ mod tests {
     fn test_preorder() {
         let data = String::from("(A, (B, C)D, E, F)G;");
 
-        let parsed_tree = from_newick(&data);
+        let parsed_tree = Tree::<String, Option<f64>>::from_newick(&data);
 
         let expected_names = vec!["G", "A", "D", "B", "C", "E", "F"];
         let mut iter_names = Vec::new();

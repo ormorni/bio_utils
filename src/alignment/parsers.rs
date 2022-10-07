@@ -40,10 +40,14 @@ impl AlignmentFormat {
     }
 }
 
+enum FastaIterState {
+    Name,
+    Sequence,
+}
+
 pub struct FastaIter {
-    reader: Option<Lines<BufReader<File>>>,
-    name: String,
-    seq: String,
+    reader: Option<BufReader<File>>,
+    buf: Vec<u8>,
 }
 
 /// An iterator iterating over the sequences in a FASTA file, without storing the whole file in memory.
@@ -52,11 +56,12 @@ impl FastaIter {
     /// An internal function possibly succeeding in making an iterator.
     fn make_reader(address: &Path) -> Option<FastaIter> {
         let file = File::open(address).ok()?;
-        let reader = BufReader::new(file);
+        let mut temp = Vec::new();
+        let mut reader = BufReader::new(file);
+        reader.read_until(b'>', &mut temp);
         Some(FastaIter {
-            reader: Some(reader.lines()),
-            name: String::new(),
-            seq: String::new(),
+            reader: Some(reader),
+            buf: Vec::with_capacity(65536),
         })
     }
 
@@ -66,45 +71,49 @@ impl FastaIter {
         } else {
             FastaIter {
                 reader: None,
-                name: String::new(),
-                seq: String::new(),
+                buf: Vec::new(),
             }
         }
     }
 }
 
 impl Iterator for FastaIter {
-    type Item = (String, Sequence);
+    type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(line) = self.reader.as_mut()?.next() {
-            let line = line.unwrap();
-            if line.starts_with(">") {
-                let res_name = self.name.clone();
-                let res_seq = self.seq.chars().map(|c|AminoAcid::from_char(c)).collect_vec();
-                self.name = String::from(&line[1..]);
-                self.seq = String::new();
-                if !res_name.is_empty() {
-                    return Some((res_name, res_seq));
-                }
-            } else {
-                self.seq.extend(line.trim().chars());
-            }
-        }
-        // Yielding the last sequence.
-        if !self.name.is_empty() {
-            let res_name = self.name.clone();
-            let res_seq = self.seq.chars().map(|c|AminoAcid::from_char(c)).collect_vec();
-            self.name = String::new();
-            self.seq = String::new();
-            return Some((res_name, res_seq));
-        }
+        if let Some(reader) = self.reader.as_mut() {
+            self.buf.truncate(0);
+            let name_length = reader.read_until(b'\n', &mut self.buf).unwrap();
+            self.buf.pop();
+            let name = String::from(String::from_utf8_lossy(&self.buf));
+            self.buf.truncate(0);
+            let seq_length = reader.read_until(b'>', &mut self.buf).unwrap();
+            let next_exists = self.buf[seq_length - 1] == b'>';
 
+            if next_exists {
+                self.buf.truncate(seq_length - 1);
+            }
+            let seq = String::from(String::from_utf8_lossy(&self.buf));
+
+            self.buf.truncate(0);
+            if !next_exists {
+                self.reader = None;
+            }
+            return Some((name, seq))
+        }
         None
     }
 }
 
-
+pub fn string_to_seq(data: &[u8]) -> Sequence {
+    let mut seq = Sequence::with_capacity(data.len());
+    for aa_utf8 in data.iter().cloned() {
+        if aa_utf8 != b'\n' {
+            seq.push(AminoAcid::from_u8(aa_utf8));
+        }
+    }
+    seq
+}
 
 /// Implementations for MSA reading and writing from various file formats.
 impl Alignment {

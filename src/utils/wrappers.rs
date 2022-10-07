@@ -162,6 +162,21 @@ pub fn hmmbuild<AliPathRef: AliPath>(msa: AliPathRef, hmm_address: &Path) {
     .expect("HmmBuild command failed!");
 }
 
+/// A wrapper around HmmAlign.
+/// Generates an MSA in the stockholm format from an alignment and an HMM.
+pub fn hmmalign<AliPathRef: AliPath>(ali: AliPathRef, hmm_address: &Path) -> Alignment {
+    let ali_address = ali.get_path(AlignmentFormat::FASTA);
+    assert!(ali_address.exists(), "Alignment doesn't exist: {:?}", ali_address);
+
+    let output = run_cmd(&format!(
+        "hmmalign {} {}",
+        hmm_address.to_str().unwrap(),
+        ali_address.to_str().unwrap()
+    )).expect("HmmAlign command failed!").stdout;
+
+    Alignment::from_stockholm(&String::from_utf8(output).expect("Failed to parse hmmalign output!"))
+}
+
 /// Uses the CD-HIT program to cluster sequences.
 pub fn cd_hit<AliPathRef: AliPath>(ali: AliPathRef, tar_address: &Path, cluster_cutoff: f64) {
     let ali = ali.get_path(AlignmentFormat::FASTA);

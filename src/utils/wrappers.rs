@@ -222,6 +222,19 @@ pub fn fasttree<AliPathRef: AliPath>(ali: AliPathRef) -> Tree<String, f64> {
     Tree::<String, f64>::from_newick(&tree_data)
 }
 
+pub fn kalign<AliPathRef: AliPath>(ali: AliPathRef) -> Alignment {
+    let path = ali.get_path(AlignmentFormat::FASTA);
+
+    let mut temp_dir = std::env::temp_dir();
+    let uuid = uuid::Uuid::new_v4();
+    temp_dir.push(format!("{}.{}", uuid, AlignmentFormat::FASTA.get_ext()));
+
+    run_cmd(&format!("kalign -i {} -o {}", path.to_str().unwrap(), temp_dir.to_str().unwrap()))
+        .expect("Running KAlign failed!");
+
+    Alignment::from_address(&temp_dir).expect("Reading KAlign output failed!")
+}
+
 pub fn main() {
     // // Testing HmmSearch
     // let res = hmmsearch(Path::new("data/theme1ex2.hmm"), Path::new("data/pdb.fa"));

@@ -15,7 +15,7 @@ pub struct TreeSampler<'t> {
     /// The transition table used.
     pub table: TransitionTable,
     /// The probabilities of seeing each amino acid in each node, given only the amino acids below the node.
-    pub(crate) probs_given_below: HashMap<&'t Node<String, f64>, Vec21>,
+    pub probs_given_below: HashMap<&'t Node<String, f64>, Vec21>,
 }
 
 fn choose_by_probs(v: &Vec21, rng: &mut impl Rng) -> usize {

@@ -124,7 +124,7 @@ impl AminoAcid {
     }
 
     /// Returns an iterator over all amino acids.
-    pub fn iter() -> impl Iterator<Item = &'static AminoAcid> + Clone {
+    pub fn iter() -> impl Iterator<Item = AminoAcid> + Clone {
         [
             AminoAcid::A,
             AminoAcid::R,
@@ -149,6 +149,35 @@ impl AminoAcid {
             AminoAcid::GAP,
         ]
         .iter()
+        .cloned()
+    }
+
+    /// Returns an iterator over all amino acids.
+    pub fn no_gap() -> impl Iterator<Item = AminoAcid> + Clone {
+        [
+            AminoAcid::A,
+            AminoAcid::R,
+            AminoAcid::N,
+            AminoAcid::D,
+            AminoAcid::C,
+            AminoAcid::Q,
+            AminoAcid::E,
+            AminoAcid::G,
+            AminoAcid::H,
+            AminoAcid::I,
+            AminoAcid::L,
+            AminoAcid::K,
+            AminoAcid::M,
+            AminoAcid::F,
+            AminoAcid::P,
+            AminoAcid::S,
+            AminoAcid::T,
+            AminoAcid::W,
+            AminoAcid::Y,
+            AminoAcid::V,
+        ]
+        .iter()
+        .cloned()
     }
 }
 

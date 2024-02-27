@@ -1,5 +1,5 @@
-use std::fmt::{Debug, Formatter};
 use crate::distributions::convolve;
+use std::fmt::{Debug, Formatter};
 
 /// A struct holding the probabilities of a random variable over the non-negative reals.
 #[derive(Clone)]
@@ -9,9 +9,9 @@ pub struct Dist1D {
     /// The maximal value in a cell before it is dropped.
     drop: f64,
     /// The resolution in which the distribution is kept.
-    scale: f64,
+    pub scale: f64,
     /// A shift, used to include negative numbers.
-    shift: isize,
+    pub shift: isize,
 }
 
 impl Dist1D {
@@ -25,7 +25,7 @@ impl Dist1D {
     }
 
     /// Maps a float to an index of the array.
-    pub(crate) fn map_index(&self, idx: f64) -> isize {
+    pub fn map_index(&self, idx: f64) -> isize {
         // Infinite indices are passed as-is.
         if idx.is_finite() {
             return (idx * self.scale).round() as isize + self.shift;
@@ -145,16 +145,15 @@ impl Debug for Dist1D {
     }
 }
 
-
 #[cfg(test)]
 mod tests_1d {
     use crate::distributions::dist1d::Dist1D;
+    use crate::utils::tests::{assert_close, SEED};
     use itertools::Itertools;
     use rand::distributions::Uniform;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
     use std::cmp::Ordering;
-    use crate::utils::tests::{assert_close, SEED};
 
     #[test]
     fn test_conv() {
@@ -206,7 +205,10 @@ mod tests_1d {
         dist.data = vec![0.0, 0.0, 1., 0.0, 0.0];
         dist.trim();
         // assert_close(dist.sum_range(1.5, 2.5), 1.);
-        assert_close(dist.integrate(|f|if (1.5..2.5).contains(&f) {1.} else {0.}), 1.);
+        assert_close(
+            dist.integrate(|f| if (1.5..2.5).contains(&f) { 1. } else { 0. }),
+            1.,
+        );
         assert_eq!(dist.data.len(), 1);
         assert_eq!(dist.shift, -2);
         assert_eq!(dist.map_index(1.9), 0);
@@ -275,4 +277,3 @@ mod tests_1d {
         assert_close(norm_cdf_1, 0.8413447460685429);
     }
 }
-

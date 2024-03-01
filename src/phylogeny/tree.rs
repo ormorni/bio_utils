@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// An implementation of a phylogenetic tree.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Tree<NodeData, EdgeData> {
     pub root: Node<NodeData, EdgeData>,
 }
@@ -27,39 +27,60 @@ pub struct Edge<'t, NodeData, EdgeData> {
     pub data: &'t EdgeData,
 }
 
-impl <'t, NodeData, EdgeData> Edge<'t, NodeData, EdgeData> {
-    pub fn new(parent: &'t Node<NodeData, EdgeData>, child: &'t Node<NodeData, EdgeData>, data: &'t EdgeData) -> Edge<'t, NodeData, EdgeData> {
-        Edge {parent, child, data }
+impl<'t, NodeData, EdgeData> Edge<'t, NodeData, EdgeData> {
+    pub fn new(
+        parent: &'t Node<NodeData, EdgeData>,
+        child: &'t Node<NodeData, EdgeData>,
+        data: &'t EdgeData,
+    ) -> Edge<'t, NodeData, EdgeData> {
+        Edge {
+            parent,
+            child,
+            data,
+        }
     }
 }
 
-impl <NodeData: Default, EdgeData> Tree<NodeData, EdgeData> {
+impl<NodeData: Default, EdgeData> Tree<NodeData, EdgeData> {
     /// Initializing a new empty tree.
     pub fn new() -> Tree<NodeData, EdgeData> {
         Tree { root: Node::new() }
     }
 }
 
-impl <NodeData, EdgeData> Tree<NodeData, EdgeData> {
+impl<NodeData, EdgeData> Tree<NodeData, EdgeData> {
     /// Initializing a new empty tree.
     pub fn from_root(root: Node<NodeData, EdgeData>) -> Tree<NodeData, EdgeData> {
         Tree { root }
     }
 }
 
-impl <NodeData, EdgeData: Clone> Tree<NodeData, EdgeData> {
-    pub fn map_node_data<NewData, F : Clone + Fn(&NodeData) -> NewData>(&self, func: F) -> Tree<NewData, EdgeData> {
+impl<NodeData, EdgeData: Clone> Tree<NodeData, EdgeData> {
+    pub fn map_node_data<NewData, F: Clone + Fn(&NodeData) -> NewData>(
+        &self,
+        func: F,
+    ) -> Tree<NewData, EdgeData> {
         Tree::from_root(self.root.map_node_data(func))
+    }
+
+    pub fn map_nodes<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
+        &self,
+        func: F,
+    ) -> Tree<NewData, EdgeData> {
+        Tree::from_root(self.root.map_nodes(func))
     }
 }
 
-impl <NodeData: Clone, EdgeData> Tree<NodeData, EdgeData> {
-    pub fn map_edge_data<NewData, F : Clone + Fn(&EdgeData) -> NewData>(&self, func: F) -> Tree<NodeData, NewData> {
+impl<NodeData: Clone, EdgeData> Tree<NodeData, EdgeData> {
+    pub fn map_edge_data<NewData, F: Clone + Fn(&EdgeData) -> NewData>(
+        &self,
+        func: F,
+    ) -> Tree<NodeData, NewData> {
         Tree::from_root(self.root.map_edge_data(func))
     }
 }
 
-impl <NodeData: Default, EdgeData> Node<NodeData, EdgeData> {
+impl<NodeData: Default, EdgeData> Node<NodeData, EdgeData> {
     /// Initializes an empty node.
     pub fn new() -> Node<NodeData, EdgeData> {
         Node {
@@ -70,8 +91,7 @@ impl <NodeData: Default, EdgeData> Node<NodeData, EdgeData> {
     }
 }
 
-impl <NodeData, EdgeData> Node<NodeData, EdgeData> {
-
+impl<NodeData, EdgeData> Node<NodeData, EdgeData> {
     /// Initializes an empty node with a given name.
     pub fn from_data(data: NodeData) -> Node<NodeData, EdgeData> {
         Node {
@@ -85,34 +105,54 @@ impl <NodeData, EdgeData> Node<NodeData, EdgeData> {
         self.child_nodes.is_empty()
     }
 
-    pub fn child_edges(&self) -> impl Iterator<Item=Edge<NodeData, EdgeData>> + Clone {
-        self.child_nodes.iter()
-            .map(|(node, data)|Edge::new(self, node, data))
+    pub fn child_edges(&self) -> impl Iterator<Item = Edge<NodeData, EdgeData>> + Clone {
+        self.child_nodes
+            .iter()
+            .map(|(node, data)| Edge::new(self, node, data))
     }
 }
 
-impl <NodeData, EdgeData: Clone> Node<NodeData, EdgeData> {
-    fn map_node_data<NewData, F : Clone + Fn(&NodeData) -> NewData>(&self, func: F) -> Node<NewData, EdgeData> {
+impl<NodeData, EdgeData: Clone> Node<NodeData, EdgeData> {
+    fn map_node_data<NewData, F: Clone + Fn(&NodeData) -> NewData>(
+        &self,
+        func: F,
+    ) -> Node<NewData, EdgeData> {
         let mut res = Node::from_data(func(&self.data));
         for (child_node, child_edge) in self.child_nodes.iter() {
-            res.child_nodes.push((child_node.map_node_data(func.clone()), child_edge.clone()));
+            res.child_nodes
+                .push((child_node.map_node_data(func.clone()), child_edge.clone()));
+        }
+        res
+    }
+
+    fn map_nodes<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
+        &self,
+        func: F,
+    ) -> Node<NewData, EdgeData> {
+        let mut res = Node::from_data(func(&self));
+        for (child_node, child_edge) in self.child_nodes.iter() {
+            res.child_nodes
+                .push((child_node.map_nodes(func.clone()), child_edge.clone()));
         }
         res
     }
 }
 
-impl <NodeData: Clone, EdgeData> Node<NodeData, EdgeData> {
-    fn map_edge_data<NewData, F : Clone + Fn(&EdgeData) -> NewData>(&self, func: F) -> Node<NodeData, NewData> {
+impl<NodeData: Clone, EdgeData> Node<NodeData, EdgeData> {
+    fn map_edge_data<NewData, F: Clone + Fn(&EdgeData) -> NewData>(
+        &self,
+        func: F,
+    ) -> Node<NodeData, NewData> {
         let mut res = Node::from_data(self.data.clone());
         for (child_node, child_edge) in self.child_nodes.iter() {
-            res.child_nodes.push((child_node.map_edge_data(func.clone()), func(child_edge)));
+            res.child_nodes
+                .push((child_node.map_edge_data(func.clone()), func(child_edge)));
         }
         res
     }
 }
 
-
-impl <NodeData, EdgeData> Hash for Node<NodeData, EdgeData> {
+impl<NodeData, EdgeData> Hash for Node<NodeData, EdgeData> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
@@ -124,8 +164,7 @@ impl<NodeData, EdgeData> PartialEq<Self> for Node<NodeData, EdgeData> {
     }
 }
 
-impl <NodeData, EdgeData> std::cmp::Eq for Node<NodeData, EdgeData> {}
-
+impl<NodeData, EdgeData> std::cmp::Eq for Node<NodeData, EdgeData> {}
 
 impl<'t, NodeData, EdgeData> PartialEq<Self> for Edge<'t, NodeData, EdgeData> {
     fn eq(&self, other: &Self) -> bool {

@@ -26,8 +26,7 @@ fn transposed<T: Clone>(arr: &Vec<Vec<T>>) -> Vec<Vec<T>> {
 }
 
 /// Convolves two 1D arrays naively.
-#[allow(unused)]
-pub fn convolve_naive<T: Float>(v1: &[T], v2: &[T]) -> Vec<T> {
+pub fn convolve_naive<T: FftNum>(v1: &[T], v2: &[T]) -> Vec<T> {
     let mut res = vec![T::zero(); v1.len() + v2.len() - 1];
 
     for (i, j) in iproduct!(0..v1.len(), 0..v2.len()) {
@@ -38,6 +37,12 @@ pub fn convolve_naive<T: Float>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 pub fn convolve<T: FftNum>(v1: &[T], v2: &[T]) -> Vec<T> {
+    // When the convolution is small enough, the naive algorithm is faster.
+    // The constants here are untested.
+    if (v1.len() * v2.len() < 1000) || (v1.len() < 8) || (v2.len() < 8) {
+        return convolve_naive(v1, v2);
+    }
+
     let res_length = v1.len() + v2.len() - 1;
     let alloc_length = fft_array_size(res_length);
 
@@ -186,10 +191,10 @@ pub fn convolve_2d<T: FftNum>(mut v1: Vec<Vec<T>>, mut v2: Vec<Vec<T>>) -> Vec<V
 #[cfg(test)]
 mod tests {
     use crate::distributions::{convolve, convolve_2d, convolve_2d_naive, convolve_naive};
+    use crate::utils::tests::{assert_close, SEED};
     use itertools::{izip, Itertools};
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
-    use crate::utils::tests::{assert_close, SEED};
 
     /// Tests that the FFT-based convolution and the regular convolution return the same results.
     #[test]

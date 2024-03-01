@@ -1,5 +1,10 @@
+use itertools::Itertools;
+
 use crate::distributions::convolve;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::{Add, AddAssign, Mul, MulAssign},
+};
 
 /// A struct holding the probabilities of a random variable over the non-negative reals.
 #[derive(Clone)]
@@ -7,11 +12,13 @@ pub struct Dist1D {
     /// The probability distribution.
     pub data: Vec<f64>,
     /// The maximal value in a cell before it is dropped.
-    drop: f64,
+    pub drop: f64,
     /// The resolution in which the distribution is kept.
     pub scale: f64,
     /// A shift, used to include negative numbers.
     pub shift: isize,
+    /// Tracks the meaningful length of the data in the distribution.
+    length: usize,
 }
 
 impl Dist1D {
@@ -21,6 +28,7 @@ impl Dist1D {
             drop,
             scale,
             shift: 0,
+            length: 0,
         }
     }
 
@@ -51,31 +59,41 @@ impl Dist1D {
 
         if higher_part != 0. {
             res.data = vec![lower_part, higher_part];
+            res.length = 2;
         } else {
             res.data = vec![lower_part];
+            res.length = 1;
         }
         res.shift = -(target_ind.floor() as isize);
 
         res
     }
 
-    /// Trims empty cells from the ProbArray.
+    /// Trims empty cells from the distribution.
+    /// The distribution is only trimmed to lengths that are powers of 2.
     pub fn trim(&mut self) {
         let mut new_start = 0;
         while new_start < self.data.len() && self.data[new_start].abs() < self.drop {
             new_start += 1;
         }
-        let mut new_end = self.data.len();
+        let mut new_end = self.length;
         while new_end > 0 && self.data[new_end - 1].abs() < self.drop {
             new_end -= 1;
         }
-        if new_start < new_end {
-            self.data = self.data[new_start..new_end].to_vec();
-            self.shift -= new_start as isize;
-        } else {
+        if new_start >= new_end {
             self.data = vec![0.];
             self.shift = 0;
+            return;
         }
+        let new_len = new_end - new_start;
+        if new_len < self.length {
+            for i in 0..new_len {
+                self.data[i] = self.data[i + new_start];
+            }
+            self.shift -= new_start as isize;
+        }
+        self.length = new_end - new_start;
+        self.data.resize(self.length.next_power_of_two(), 0.);
     }
 
     /// Returns the distribution corresponding to the sum of two independent distributions.
@@ -86,38 +104,19 @@ impl Dist1D {
             res.data[i] = res.data[i].max(0.);
         }
         res.shift = self.shift + other.shift;
+        res.length = res.data.len();
         res.trim();
         res
     }
 
     /// The length of the internal array.
     pub fn len(&self) -> usize {
-        self.data.len()
+        self.length
     }
 
     /// Returns the distribution matching the weighted average of the two distributions.
     pub fn weighted_average(dist_1: &Dist1D, p1: f64, dist_2: &Dist1D, p2: f64) -> Dist1D {
-        assert!(p1.is_finite());
-        assert!(p2.is_finite());
-
-        let mut res = Dist1D::new(dist_1.drop, dist_1.scale);
-        res.shift = dist_1.shift.max(dist_2.shift);
-        let delta_1 = res.shift - dist_1.shift;
-        let delta_2 = res.shift - dist_2.shift;
-        res.data = vec![
-            0.;
-            (dist_1.len() as isize + delta_1).max(dist_2.len() as isize + delta_2)
-                as usize
-        ];
-        for i in 0..dist_1.len() {
-            res.data[(i as isize + delta_1) as usize] += p1 * dist_1.data[i];
-        }
-        for i in 0..dist_2.len() {
-            res.data[(i as isize + delta_2) as usize] += p2 * dist_2.data[i];
-        }
-
-        res.trim();
-        res
+        &(dist_1 * p1) + &(dist_2 * p2)
     }
 
     /// Returns an integral over the function using distribution as a measure.
@@ -128,6 +127,80 @@ impl Dist1D {
             res += function(unmapped) * prob;
         }
         res
+    }
+}
+
+impl Mul<f64> for &Dist1D {
+    type Output = Dist1D;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        let data = self.data.iter().map(|i| i * rhs).collect_vec();
+        Dist1D {
+            data,
+            drop: self.drop,
+            scale: self.scale,
+            shift: self.shift,
+            length: self.length,
+        }
+    }
+}
+
+impl MulAssign<f64> for Dist1D {
+    fn mul_assign(&mut self, rhs: f64) {
+        for i in self.data.iter_mut() {
+            *i *= rhs;
+        }
+    }
+}
+
+impl Add for &Dist1D {
+    type Output = Dist1D;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut res = Dist1D::new(self.drop, self.scale);
+        res.shift = self.shift.max(rhs.shift);
+        let res_len = (((self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift)
+            + res.shift) as usize)
+            .next_power_of_two();
+
+        let delta_1 = res.shift - self.shift;
+        let delta_2 = res.shift - rhs.shift;
+        res.data = vec![0.; res_len];
+
+        for i in 0..self.len() {
+            res.data[(i as isize + delta_1) as usize] += self.data[i];
+        }
+        for i in 0..rhs.len() {
+            res.data[(i as isize + delta_2) as usize] += rhs.data[i];
+        }
+        res.length = res.data.len();
+        res.trim();
+        res
+    }
+}
+
+impl AddAssign<&Dist1D> for Dist1D {
+    fn add_assign(&mut self, rhs: &Self) {
+        let low = (-self.shift).min(-rhs.shift);
+        let high = (self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift);
+        if high - low > self.data.len() as isize {
+            // The current allocated array will not suffice.
+            *self = &*self + rhs;
+        } else {
+            // Shifting the internal data.
+            if rhs.shift > self.shift {
+                let diff = (rhs.shift - self.shift) as usize;
+                for i in (diff..self.data.len()).rev() {
+                    self.data[i] = self.data[i - diff];
+                }
+                self.data[..diff].fill(0.);
+                self.shift = rhs.shift;
+            }
+            let diff = (self.shift - rhs.shift) as usize;
+            for i in 0..rhs.len() {
+                self.data[i + diff] += rhs.data[i];
+            }
+        }
     }
 }
 
@@ -188,13 +261,13 @@ mod tests_1d {
     fn test_av() {
         let f1 = Dist1D::from_f64(2., 0.01, 1.);
         assert_eq!(f1.shift, -2);
-        assert_eq!(f1.data, vec![1.]);
+        assert_eq!(f1.data[..f1.len()], vec![1.]);
         let f2 = Dist1D::from_f64(0.25, 0.01, 1.);
         assert_eq!(f2.shift, 0);
-        assert_eq!(f2.data, vec![0.75, 0.25]);
+        assert_eq!(f2.data[..f2.len()], vec![0.75, 0.25]);
 
         let av = Dist1D::weighted_average(&f1, 0.25, &f2, 0.75);
-        assert_eq!(av.data, vec![0.5625, 0.1875, 0.25]);
+        assert_eq!(av.data[..av.len()], vec![0.5625, 0.1875, 0.25]);
         assert_eq!(av.shift, 0);
     }
 
@@ -203,6 +276,7 @@ mod tests_1d {
     fn trim_example() {
         let mut dist = Dist1D::new(0.01, 1.);
         dist.data = vec![0.0, 0.0, 1., 0.0, 0.0];
+        dist.length = 5;
         dist.trim();
         // assert_close(dist.sum_range(1.5, 2.5), 1.);
         assert_close(
@@ -275,5 +349,45 @@ mod tests_1d {
             Ordering::Greater => 0.,
         });
         assert_close(norm_cdf_1, 0.8413447460685429);
+    }
+
+    #[test]
+    fn test_ops() {
+        let mut d1 = Dist1D {
+            data: vec![1., 1., 2., 3.],
+            drop: 1e-6,
+            scale: 1.,
+            shift: 0,
+            length: 4,
+        };
+
+        let d2 = Dist1D {
+            data: vec![1., 1., 2., 3.],
+            drop: 1e-6,
+            scale: 1.,
+            shift: 1,
+            length: 4,
+        };
+
+        let mut d3 = Dist1D {
+            data: vec![2., 1., 2., 3.],
+            drop: 1e-6,
+            scale: 1.,
+            shift: -1,
+            length: 3,
+        };
+
+        assert_eq!(
+            (&d1 + &d2).data,
+            vec![1.0, 2.0, 3.0, 5.0, 3.0, 0.0, 0.0, 0.0]
+        );
+
+        assert_eq!((&d1 + &d3).data, vec![1.0, 3.0, 3.0, 5.0]);
+
+        d1 += &d3;
+        assert_eq!(d1.data, vec![1.0, 3.0, 3.0, 5.0]);
+
+        d3 += &d1;
+        assert_eq!(d3.data, vec![1.0, 5.0, 4.0, 7.0]);
     }
 }

@@ -69,6 +69,20 @@ impl Dist1D {
         res
     }
 
+    pub fn from_vec(data: &Vec<f64>, shift: isize, drop: f64, scale: f64) -> Dist1D {
+        let mut res_data = Vec::with_capacity(data.len().next_power_of_two());
+        res_data.extend(data);
+        res_data.resize(res_data.len().next_power_of_two(), 0.);
+
+        Dist1D {
+            data: res_data,
+            drop,
+            scale,
+            shift,
+            length: data.len(),
+        }
+    }
+
     /// Trims empty cells from the distribution.
     /// The distribution is only trimmed to lengths that are powers of 2.
     pub fn trim(&mut self) {

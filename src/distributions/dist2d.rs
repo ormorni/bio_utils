@@ -26,14 +26,14 @@ impl Dist2D {
     }
 
     /// Maps a float to an index of the array.
-    fn map_index(&self, idx: (f64, f64)) -> (isize, isize) {
+    pub fn map_index(&self, idx: (f64, f64)) -> (isize, isize) {
         (
             (idx.0 * self.scale.0).round() as isize + self.shift.0,
             (idx.1 * self.scale.1).round() as isize + self.shift.1,
         )
     }
     /// Maps a float to an index of the array.
-    fn unmap_index(&self, idx: (isize, isize)) -> (f64, f64) {
+    pub fn unmap_index(&self, idx: (isize, isize)) -> (f64, f64) {
         (
             ((idx.0 - self.shift.0) as f64) / self.scale.0,
             ((idx.1 - self.shift.1) as f64) / self.scale.1,

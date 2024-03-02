@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use rustfft::num_traits::MulAddAssign;
 
 use crate::distributions::convolve;
 use std::{
@@ -136,11 +135,15 @@ impl Dist1D {
         &(dist_1 * p1) + &(dist_2 * p2)
     }
 
+    pub fn unmap_index(&self, idx: usize) -> f64 {
+        (idx as isize - self.shift) as f64 / self.scale
+    }
+
     /// Returns an integral over the function using distribution as a measure.
     pub fn integrate(&self, function: impl Fn(f64) -> f64) -> f64 {
         let mut res = 0.;
         for (idx, prob) in self.data.iter().enumerate() {
-            let unmapped = (idx as isize - self.shift) as f64 / self.scale;
+            let unmapped = self.unmap_index(idx);
             res += function(unmapped) * prob;
         }
         res

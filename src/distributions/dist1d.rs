@@ -119,7 +119,7 @@ impl<F: Float> Dist1D<F> {
     /// Returns the distribution corresponding to the sum of two independent distributions.
     pub fn convolve(&self, other: &Dist1D<F>) -> Dist1D<F> {
         let mut res = Dist1D::new(self.drop, self.scale);
-        res.data = convolve(&self.data, &other.data);
+        res.data = convolve(&self.data[..self.len()], &other.data[..other.len()]);
         for i in 0..res.len() {
             res.data[i] = res.data[i].max(F::zero());
         }

@@ -27,6 +27,9 @@ fn transposed<T: Clone>(arr: &Vec<Vec<T>>) -> Vec<Vec<T>> {
 
 /// Convolves two 1D arrays naively.
 pub fn convolve_naive<T: FftNum>(v1: &[T], v2: &[T]) -> Vec<T> {
+    if v1.len() == 0 || v2.len() == 0 {
+        return vec![];
+    }
     let mut res = vec![T::zero(); v1.len() + v2.len() - 1];
 
     for (i, j) in iproduct!(0..v1.len(), 0..v2.len()) {

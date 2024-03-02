@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::distributions::convolve;
 use std::{
     fmt::{Debug, Formatter},
-    ops::{Add, AddAssign, Mul, MulAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign},
 };
 
 /// A struct holding the probabilities of a random variable over the non-negative reals.
@@ -180,13 +180,7 @@ impl Mul<f64> for &Dist1D {
 
     fn mul(self, rhs: f64) -> Self::Output {
         let data = self.data.iter().map(|i| i * rhs).collect_vec();
-        Dist1D {
-            data,
-            drop: self.drop,
-            scale: self.scale,
-            shift: self.shift,
-            length: self.length,
-        }
+        Dist1D::from_vec(&data, self.shift, self.drop, self.scale)
     }
 }
 
@@ -194,6 +188,23 @@ impl MulAssign<f64> for Dist1D {
     fn mul_assign(&mut self, rhs: f64) {
         for i in self.data.iter_mut() {
             *i *= rhs;
+        }
+    }
+}
+
+impl Div<f64> for &Dist1D {
+    type Output = Dist1D;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        let data = self.data.iter().map(|i| i / rhs).collect_vec();
+        Dist1D::from_vec(&data, self.shift, self.drop, self.scale)
+    }
+}
+
+impl DivAssign<f64> for Dist1D {
+    fn div_assign(&mut self, rhs: f64) {
+        for i in self.data.iter_mut() {
+            *i /= rhs;
         }
     }
 }

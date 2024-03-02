@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rustfft::num_traits::MulAddAssign;
 
 use crate::distributions::convolve;
 use std::{
@@ -65,7 +66,7 @@ impl Dist1D {
             res.length = 1;
         }
         res.shift = -(target_ind.floor() as isize);
-
+        assert!(res.length <= res.data.len());
         res
     }
 
@@ -95,8 +96,9 @@ impl Dist1D {
             new_end -= 1;
         }
         if new_start >= new_end {
-            self.data = vec![0.];
+            self.data = vec![];
             self.shift = 0;
+            self.length = 0;
             return;
         }
         let new_len = new_end - new_start;
@@ -108,6 +110,7 @@ impl Dist1D {
         }
         self.length = new_end - new_start;
         self.data.resize(self.length.next_power_of_two(), 0.);
+        assert!(self.length <= self.data.len());
     }
 
     /// Returns the distribution corresponding to the sum of two independent distributions.
@@ -142,6 +145,31 @@ impl Dist1D {
         }
         res
     }
+
+    pub fn add_mul_assign(&mut self, rhs: &Dist1D, factor: f64) {
+        let low = (-self.shift).min(-rhs.shift);
+        let high = (self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift);
+        if high - low > self.data.len() as isize {
+            // The current allocated array will not suffice.
+            self.data
+                .resize(((high - low) as usize).next_power_of_two(), 0.);
+        }
+        // Shifting the internal data.
+        if rhs.shift > self.shift {
+            let diff = (rhs.shift - self.shift) as usize;
+            for i in (diff..self.data.len()).rev() {
+                self.data[i] = self.data[i - diff];
+            }
+            self.data[..diff].fill(0.);
+            self.shift = rhs.shift;
+        }
+        let diff = (self.shift - rhs.shift) as usize;
+        for i in 0..rhs.len() {
+            self.data[i + diff] += factor * rhs.data[i];
+        }
+        self.length = (high - low) as usize;
+        assert!(self.length <= self.data.len());
+    }
 }
 
 impl Mul<f64> for &Dist1D {
@@ -173,22 +201,21 @@ impl Add for &Dist1D {
     fn add(self, rhs: Self) -> Self::Output {
         let mut res = Dist1D::new(self.drop, self.scale);
         res.shift = self.shift.max(rhs.shift);
-        let res_len = (((self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift)
-            + res.shift) as usize)
-            .next_power_of_two();
+        let res_len = ((self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift)
+            + res.shift) as usize;
+        let alloc_len = res_len.next_power_of_two();
 
         let delta_1 = res.shift - self.shift;
         let delta_2 = res.shift - rhs.shift;
-        res.data = vec![0.; res_len];
-
+        res.data = vec![0.; alloc_len];
         for i in 0..self.len() {
             res.data[(i as isize + delta_1) as usize] += self.data[i];
         }
         for i in 0..rhs.len() {
             res.data[(i as isize + delta_2) as usize] += rhs.data[i];
         }
-        res.length = res.data.len();
-        res.trim();
+        res.length = res_len;
+        assert!(res.length <= res.data.len());
         res
     }
 }
@@ -199,22 +226,24 @@ impl AddAssign<&Dist1D> for Dist1D {
         let high = (self.len() as isize - self.shift).max(rhs.len() as isize - rhs.shift);
         if high - low > self.data.len() as isize {
             // The current allocated array will not suffice.
-            *self = &*self + rhs;
-        } else {
-            // Shifting the internal data.
-            if rhs.shift > self.shift {
-                let diff = (rhs.shift - self.shift) as usize;
-                for i in (diff..self.data.len()).rev() {
-                    self.data[i] = self.data[i - diff];
-                }
-                self.data[..diff].fill(0.);
-                self.shift = rhs.shift;
-            }
-            let diff = (self.shift - rhs.shift) as usize;
-            for i in 0..rhs.len() {
-                self.data[i + diff] += rhs.data[i];
-            }
+            self.data
+                .resize(((high - low) as usize).next_power_of_two(), 0.);
         }
+        // Shifting the internal data.
+        if rhs.shift > self.shift {
+            let diff = (rhs.shift - self.shift) as usize;
+            for i in (diff..self.data.len()).rev() {
+                self.data[i] = self.data[i - diff];
+            }
+            self.data[..diff].fill(0.);
+            self.shift = rhs.shift;
+        }
+        let diff = (self.shift - rhs.shift) as usize;
+        for i in 0..rhs.len() {
+            self.data[i + diff] += rhs.data[i];
+        }
+        self.length = (high - low) as usize;
+        assert!(self.length <= self.data.len());
     }
 }
 
@@ -374,6 +403,7 @@ mod tests_1d {
             shift: 0,
             length: 4,
         };
+        assert_eq!((&d1 * 2.).data, vec![2., 2., 4., 6.]);
 
         let d2 = Dist1D {
             data: vec![1., 1., 2., 3.],
@@ -403,5 +433,76 @@ mod tests_1d {
 
         d3 += &d1;
         assert_eq!(d3.data, vec![1.0, 5.0, 4.0, 7.0]);
+    }
+
+    #[test]
+    fn test_add() {
+        let mut rng = StdRng::seed_from_u64(0x12345678);
+
+        for _ in 0..100 {
+            let v1 = (&mut rng)
+                .sample_iter(rand_distr::Normal::new(0., 1.).unwrap())
+                .take(100)
+                .collect::<Vec<f64>>();
+            let v2 = (&mut rng)
+                .sample_iter(rand_distr::Normal::new(0., 1.).unwrap())
+                .take(100)
+                .collect::<Vec<f64>>();
+
+            let shift_1 = rng.gen_range(-10..10);
+            let shift_2 = rng.gen_range(-10..10);
+            let drop = 1e-6;
+            let scale = rng.gen::<f64>() + 1.;
+            let d1 = Dist1D::from_vec(&v1, shift_1, drop, scale);
+            let d2 = Dist1D::from_vec(&v2, shift_2, drop, scale);
+
+            let a = rng.gen::<f64>();
+            let b = rng.gen::<f64>();
+            let c = rng.gen::<f64>();
+            let d = rng.gen::<f64>();
+
+            let d3 = &d1 + &d2;
+
+            assert_close(
+                d1.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d)
+                    + d2.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d),
+                d3.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d),
+            )
+        }
+    }
+
+    #[test]
+    fn test_add_assign() {
+        let mut rng = StdRng::seed_from_u64(0x12345678);
+        let v1 = (&mut rng)
+            .sample_iter(rand_distr::Normal::new(0., 1.).unwrap())
+            .take(100)
+            .collect::<Vec<f64>>();
+        let v2 = (&mut rng)
+            .sample_iter(rand_distr::Normal::new(0., 1.).unwrap())
+            .take(100)
+            .collect::<Vec<f64>>();
+
+        let shift_1 = rng.gen_range(-10..10);
+        let shift_2 = rng.gen_range(-10..10);
+        let drop = 1e-6;
+        let scale = rng.gen::<f64>() + 1.;
+        let mut d1 = Dist1D::from_vec(&v1, shift_1, drop, scale);
+        let d2 = Dist1D::from_vec(&v2, shift_2, drop, scale);
+
+        let a = rng.gen::<f64>();
+        let b = rng.gen::<f64>();
+        let c = rng.gen::<f64>();
+        let d = rng.gen::<f64>();
+
+        let s1 = d1.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d)
+            + d2.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d);
+
+        d1 += &d2;
+
+        assert_close(
+            s1,
+            d1.integrate(|f| a * f.powi(3) + b * f.powi(2) + c * f + d),
+        )
     }
 }

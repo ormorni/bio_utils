@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// An implementation of a phylogenetic tree.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct Tree<NodeData, EdgeData> {
     pub root: Node<NodeData, EdgeData>,
 }
@@ -11,7 +11,7 @@ pub struct Tree<NodeData, EdgeData> {
 static NODE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// A node in the phylogenetic tree.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Node<NodeData, EdgeData> {
     pub data: NodeData,
     pub child_nodes: Vec<(Node<NodeData, EdgeData>, EdgeData)>,

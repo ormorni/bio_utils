@@ -1,5 +1,5 @@
-use itertools::{iproduct, Itertools};
 use crate::distributions::convolve_2d;
+use itertools::{iproduct, Itertools};
 
 /// A struct holding the probabilities of a random variable over the non-negative reals.
 #[derive(Clone)]
@@ -26,10 +26,17 @@ impl Dist2D {
     }
 
     /// Maps a float to an index of the array.
-    fn map_index(&self, idx: (f64, f64)) -> (isize, isize) {
+    pub fn map_index(&self, idx: (f64, f64)) -> (isize, isize) {
         (
             (idx.0 * self.scale.0).round() as isize + self.shift.0,
             (idx.1 * self.scale.1).round() as isize + self.shift.1,
+        )
+    }
+    /// Maps a float to an index of the array.
+    pub fn unmap_index(&self, idx: (isize, isize)) -> (f64, f64) {
+        (
+            ((idx.0 - self.shift.0) as f64) / self.scale.0,
+            ((idx.1 - self.shift.1) as f64) / self.scale.1,
         )
     }
 
@@ -44,10 +51,7 @@ impl Dist2D {
             target_ind.0 - target_ind.0.floor(),
             target_ind.1 - target_ind.1.floor(),
         );
-        let lower_frac = (
-            1. - higher_frac.0,
-            1. - higher_frac.1
-        );
+        let lower_frac = (1. - higher_frac.0, 1. - higher_frac.1);
 
         res.data = match (higher_frac.0 == 0., higher_frac.1 == 0.) {
             (true, true) => vec![vec![1.]],
@@ -68,19 +72,35 @@ impl Dist2D {
     }
 
     /// Initializes a distribution from a probability density function.
-    pub fn from_fn(f: impl Fn((f64, f64)) -> f64, lower_bound: (f64, f64), upper_bound: (f64, f64), drop: f64, scale: (f64, f64)) -> Dist2D {
-        let lower_idx = ((lower_bound.0 * scale.0).floor() as isize, (lower_bound.1 * scale.1).floor() as isize);
-        let upper_idx = ((upper_bound.0 * scale.0 + 1.).ceil() as isize, (upper_bound.1 * scale.1 + 1.).ceil() as isize);
+    pub fn from_fn(
+        f: impl Fn((f64, f64)) -> f64,
+        lower_bound: (f64, f64),
+        upper_bound: (f64, f64),
+        drop: f64,
+        scale: (f64, f64),
+    ) -> Dist2D {
+        let lower_idx = (
+            (lower_bound.0 * scale.0).floor() as isize,
+            (lower_bound.1 * scale.1).floor() as isize,
+        );
+        let upper_idx = (
+            (upper_bound.0 * scale.0 + 1.).ceil() as isize,
+            (upper_bound.1 * scale.1 + 1.).ceil() as isize,
+        );
 
         assert!(upper_idx.0 > lower_idx.0);
         assert!(upper_idx.1 > lower_idx.1);
 
-        let mut arr = vec![vec![0.; (upper_idx.1 - lower_idx.1) as usize]; (upper_idx.0 - lower_idx.0) as usize];
+        let mut arr = vec![
+            vec![0.; (upper_idx.1 - lower_idx.1) as usize];
+            (upper_idx.0 - lower_idx.0) as usize
+        ];
 
         for idx in iproduct!(0..arr.len(), 0..arr[0].len()) {
-            let mapped =
-                ((idx.0 as f64 + lower_idx.0 as f64) / scale.0,
-                 (idx.1 as f64 + lower_idx.1 as f64) / scale.1);
+            let mapped = (
+                (idx.0 as f64 + lower_idx.0 as f64) / scale.0,
+                (idx.1 as f64 + lower_idx.1 as f64) / scale.1,
+            );
 
             arr[idx.0][idx.1] = f(mapped) / scale.0 / scale.1;
         }
@@ -88,7 +108,6 @@ impl Dist2D {
         let mut dist = Dist2D::new(drop, scale);
         dist.data = arr;
         dist.shift = (-lower_idx.0, -lower_idx.1);
-
 
         dist.trim();
         dist
@@ -180,10 +199,10 @@ impl Dist2D {
         assert!(p1.is_finite());
         assert!(p2.is_finite());
 
-        for (i, j) in iproduct!(0..dist_1.data.len(), 0..dist_1.data[0].len()) {
+        for (i, j) in iproduct!(0..dist_1.shape().0, 0..dist_1.shape().1) {
             assert!(dist_1.data[i][j].is_finite());
         }
-        for (i, j) in iproduct!(0..dist_2.data.len(), 0..dist_2.data[0].len()) {
+        for (i, j) in iproduct!(0..dist_2.shape().0, 0..dist_2.shape().1) {
             assert!(dist_2.data[i][j].is_finite());
         }
 
@@ -233,16 +252,30 @@ impl Dist2D {
         }
         res
     }
+
+    /// Flattens the 2D distribution to a vector of ((x, y), P(x, y)).
+    pub fn flatten(&self) -> Vec<((f64, f64), f64)> {
+        if self.data.len() == 0 {
+            return Vec::new();
+        }
+        let mut res = Vec::with_capacity(self.data.len() * self.data[0].len());
+        for (x_idx, v) in self.data.iter().enumerate() {
+            for (y_idx, prob) in v.iter().cloned().enumerate() {
+                res.push((self.unmap_index((x_idx as isize, y_idx as isize)), prob));
+            }
+        }
+        res
+    }
 }
 
 #[cfg(test)]
 mod tests_2d {
-    use std::cmp::Ordering;
-    use std::f64::consts::PI;
-    use rand::{Rng, SeedableRng};
-    use rand::rngs::StdRng;
     use crate::distributions::dist2d::Dist2D;
     use crate::utils::tests::{assert_close, SEED};
+    use rand::rngs::StdRng;
+    use rand::{Rng, SeedableRng};
+    use std::cmp::Ordering;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_convolve() {
@@ -304,7 +337,13 @@ mod tests_2d {
 
     #[test]
     fn test_from_fn() {
-        let dist = Dist2D::from_fn(|(x, y)|(-x.powi(2) - y.powi(2)).exp(), (-4., -4.), (4., 4.), 0., (15., 10.));
+        let dist = Dist2D::from_fn(
+            |(x, y)| (-x.powi(2) - y.powi(2)).exp(),
+            (-4., -4.),
+            (4., 4.),
+            0.,
+            (15., 10.),
+        );
 
         let lower_right = dist.integrate(|(x, y)| match x.total_cmp(&0.) {
             Ordering::Less => 0.,
@@ -326,16 +365,16 @@ mod tests_2d {
             let f2: f64 = rng.gen();
 
             let dist = Dist2D::from_f64((f1, f2), 0., (1., 1.));
-            assert_close(dist.integrate(|(x1, _)|x1), f1);
-            assert_close(dist.integrate(|(_, x2)|x2), f2);
+            assert_close(dist.integrate(|(x1, _)| x1), f1);
+            assert_close(dist.integrate(|(_, x2)| x2), f2);
         }
 
         let dist = Dist2D::from_f64((0.7, 0.), 0., (1., 1.));
-        assert_close(dist.integrate(|(x1, _)|x1), 0.7);
-        assert_close(dist.integrate(|(_, x2)|x2), 0.);
+        assert_close(dist.integrate(|(x1, _)| x1), 0.7);
+        assert_close(dist.integrate(|(_, x2)| x2), 0.);
 
         let dist = Dist2D::from_f64((0., 0.7), 0., (1., 1.));
-        assert_close(dist.integrate(|(x1, _)|x1), 0.);
-        assert_close(dist.integrate(|(_, x2)|x2), 0.7);
+        assert_close(dist.integrate(|(x1, _)| x1), 0.);
+        assert_close(dist.integrate(|(_, x2)| x2), 0.7);
     }
 }

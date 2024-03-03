@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 # My direct dependencies.
-nalgebra = "*"  # Used in some places for linear algebra.
+nalgebra = "*"                              # Used in some places for linear algebra.
 rand = "*"
 rand_distr = "*"
 fxhash = "*"
@@ -16,7 +16,8 @@ lazy_static = "*"
 rustfft = "*"
 realfft = "*"
 regex = "*"
-uuid = {version = "*", features = ["v4"]}
+uuid = { version = "*", features = ["v4"] }
+num-traits = "*"
 
 
 [profile.dev]

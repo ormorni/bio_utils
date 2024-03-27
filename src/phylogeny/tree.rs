@@ -56,14 +56,14 @@ impl<NodeData, EdgeData> Tree<NodeData, EdgeData> {
 }
 
 impl<NodeData, EdgeData: Clone> Tree<NodeData, EdgeData> {
-    pub fn map_node_data<NewData, F: Clone + Fn(&NodeData) -> NewData>(
+    pub fn map_node_data<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
         &self,
         func: F,
     ) -> Tree<NewData, EdgeData> {
         Tree::from_root(self.root.map_node_data(func))
     }
 
-    pub fn map_nodes<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
+    pub fn map_nodes<NewData: 'static, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
         &self,
         func: F,
     ) -> Tree<NewData, EdgeData> {
@@ -113,11 +113,11 @@ impl<NodeData, EdgeData> Node<NodeData, EdgeData> {
 }
 
 impl<NodeData, EdgeData: Clone> Node<NodeData, EdgeData> {
-    fn map_node_data<NewData, F: Clone + Fn(&NodeData) -> NewData>(
+    fn map_node_data<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
         &self,
         func: F,
     ) -> Node<NewData, EdgeData> {
-        let mut res = Node::from_data(func(&self.data));
+        let mut res = Node::from_data(func(&self));
         for (child_node, child_edge) in self.child_nodes.iter() {
             res.child_nodes
                 .push((child_node.map_node_data(func.clone()), child_edge.clone()));
@@ -125,7 +125,7 @@ impl<NodeData, EdgeData: Clone> Node<NodeData, EdgeData> {
         res
     }
 
-    fn map_nodes<NewData, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
+    fn map_nodes<NewData: 'static, F: Clone + Fn(&Node<NodeData, EdgeData>) -> NewData>(
         &self,
         func: F,
     ) -> Node<NewData, EdgeData> {

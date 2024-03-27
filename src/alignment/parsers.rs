@@ -58,7 +58,7 @@ impl FastaIter {
         let file = File::open(address).ok()?;
         let mut temp = Vec::new();
         let mut reader = BufReader::new(file);
-        reader.read_until(b'>', &mut temp);
+        reader.read_until(b'>', &mut temp).ok()?;
         Some(FastaIter {
             reader: Some(reader),
             buf: Vec::with_capacity(65536),
